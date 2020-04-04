@@ -29,3 +29,6 @@ end
 
 ExtensibleEffects.eff_pure(::Type{<:ContextManager}, a) = a
 ExtensibleEffects.eff_flatmap(continuation, c::ContextManager) = c(continuation)
+
+
+# TODO support Future https://docs.julialang.org/en/v1/manual/parallel-computing/
