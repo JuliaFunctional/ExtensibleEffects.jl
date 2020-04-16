@@ -23,18 +23,18 @@ program2 = @syntax_eff begin
   # r4 = Option(r3)
   # noeffect(4)
   # ```
-end
-r2_1 = program2 |> runhandler(Try) |> runhandler(Option) |> runlast
+end :eff
+r2_1 = runhandlers((Option, Try), program2)
 @test r2_1 == Option(Try(5))
-r2_2 = program2 |> runhandler(Option) |> runhandler(Try) |> runlast
+r2_2 = runhandlers((Try, Option), program2)
 @test r2_2 == Try(Option(5))
 @test autorun(program2) === Try(Option(5))
 
 program3 = @syntax_eff begin
   r0 = [1,4]
   [r0, r0, r0]
-end
-r3 = program3 |> runhandler(Vector) |> runlast
+end :eff
+r3 = runhandlers(Vector, program3)
 @test r3 == [1,1,1,4,4,4]
 @test autorun(program3) == [1,1,1,4,4,4]
 
@@ -44,10 +44,10 @@ program4 = @syntax_eff begin
     42
   end
   [b, a+b]
-end
+end :eff
 
-r4_1 = program4 |> runhandler(Vector) |> runhandler(Option) |> runlast
-r4_2 = program4 |> runhandler(Option) |> runhandler(Vector) |> runlast
+r4_1 = runhandlers((Option, Vector), program4)
+r4_2 = runhandlers((Vector, Option), program4)
 
 @test r4_1 isa None
 @test flatten(r4_2) == [42, 44]
@@ -73,9 +73,8 @@ r5_2 = @syntax_eff wrapper begin
     42
   end
   [b, a+b]
-end
+end :eff
 @test flatten(runhandlers((Vector, Option), r5_2)) ==  [42, 44]
-@test flatten(r5_2 |> runhandler(Option) |> runhandler(Vector) |> runlast) ==  [42, 44]
 
 r5_3 = @syntax_eff begin
   a = NoEffect(4)
@@ -87,13 +86,13 @@ end (Vector, Option)
 @test flatten(r5_3) ==  [42, 46]
 
 
-r5_4 = @syntax_eff begin
+r5_4 = @runhandlers (Option, Vector) @syntax_eff begin
   a = [1,2,3]
   b = iftrue(a % 2 == 0) do
     42
   end
   [b, a+b]
-end (Option, Vector)
+end
 @test r5_4 isa None
 
 handlers = (Try, Option)

@@ -42,7 +42,7 @@ end
 iscodeblock(expr::Expr) = expr.head === :block
 iscodeblock(other) = false
 
-macro syntax_eff(a, b)
+function parse_syntax_eff_args(a, b)
   one_is_codeblock = iscodeblock(a) || iscodeblock(b)
   both_are_codeblocks = iscodeblock(a) && iscodeblock(b)
   @assert one_is_codeblock && !both_are_codeblocks  "one and exactly one of the arguments has to be a codeblock"
@@ -56,52 +56,53 @@ macro syntax_eff(a, b)
     block = b
     effecthandlers = :none
   end
+  wrapper, block, effecthandlers
+end
+function parse_syntax_eff_args(a, b, c)
+  @assert iscodeblock(b) "expecting the middle argument to be the code block"
+  a, b, c  # wrapper, block, effecthandlers
+end
 
+
+macro syntax_eff(wrapper, block)
+  wrapper, block = parse_syntax_eff_args(a, b)
+  block = macroexpand(__module__, block)
+  eff = syntax_eff(block, wrapper)
+  esc(:(ExtensibleEffects.autorun($eff)))
+end
+macro syntax_eff(a, b)
+  wrapper, block, effecthandlers = parse_syntax_eff_args(a, b, c)
   block = macroexpand(__module__, block)
   esc(syntax_eff(block, wrapper, effecthandlers))
 end
 
-macro syntax_eff(wrapper, block, effecthandlers)
-  @assert iscodeblock(block) "expecting the middle argument to be the code block"
-  block = macroexpand(__module__, block)
-  esc(syntax_eff(block, wrapper, effecthandlers))
-end
-
-function syntax_eff(block::Expr, extra_wrapper = :identity, effecthandlers = :none)
-  _effexpr = monadic(
+function syntax_eff(block::Expr, extra_wrapper = :identity)
+  monadic(
     :(ExtensibleEffects.TypeClasses.map),
     :(ExtensibleEffects.TypeClasses.flatmap),
     extra_wrapper === :identity ? :(ExtensibleEffects.effect) : :(ExtensibleEffects.effect ∘ $extra_wrapper),
     block)
-  # We run NoEffect first, to speed up results
-  effexpr = :(ExtensibleEffects.runhandler(ExtensibleEffects.NoEffect, $_effexpr))
-  @show effecthandlers typeof(effecthandlers)
-  if effecthandlers === :none
-    effexpr
-  # in general in julia, symbols given from the outside are delivered to a macro as QuoteNode
-  elseif effecthandlers == QuoteNode(:autorun)
-    :(ExtensibleEffects.autorun($effexpr))
-  else
-    var, effect_handling = _build_runhandler_expr(effecthandlers)
-    quote
-      $var = $effexpr
-      $effect_handling
-    end
-  end
 end
 
-function _build_runhandler_expr(effecthandlers)
-  # create a variable in which we assume to get the result of the syntax_eff
-  @gensym vareff
-  if effecthandlers isa Expr && effecthandlers.head === :tuple
-    # extract tuple directly to have better typeinference
-    effect_handling = Base.foldr(effecthandlers.args, init = vareff) do x, acc
-      :($acc |> ExtensibleEffects.runhandler($x))
-    end
-    # return the variable as well as the effect handling
-    vareff, :(ExtensibleEffects.runlast($effect_handling))
-  else
-    # treat effecthandlers at runtime
-    vareff, :(ExtensibleEffects.runhandlers($effecthandlers, $vareff))
-  end
+
+"""
+    @runhandlers handlers eff
+
+For convenience we provide `runhandlers` function also as a macro.
+
+With this you can easier run left-over handlers from an `@syntax_eff` autorun.
+
+Example
+-------
+```
+@runhandlers WithCall(args, kwargs) @syntax_eff begin
+  a = Callable(x -> 2x)
+  @pure a
+end
+```
+"""
+macro runhandlers(handlers, eff)
+  esc(:(ExtensibleEffects.runhandlers($handlers, $eff)))
+end
+
 end

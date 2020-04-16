@@ -13,6 +13,10 @@ struct Eff{Effectful, Fs}
 end
 Eff(value) = Eff(value, Continuation())
 
+function Base.show(io::IO, eff::Eff)
+  print(io, "Eff(value=$(eff.value), length(cont)=$(length(eff.cont.functions)))")
+end
+
 # We reuse the Identity Monad from DataTypesBasic here, but give it a more expressive name
 const NoEffect = Identity
 
@@ -41,16 +45,15 @@ function (c::Continuation)(value)
   end
 end
 Base.isempty(c::Continuation) = Base.isempty(c.functions)
-Base.map(f, c::Continuation) = TypeClasses.map(f, c)
-TypeClasses.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
+Base.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
 
 
 # Functionalities for Eff
 # -----------------------
 
 TypeClasses.pure(::Type{<:Eff}, a) = noeffect(a)
-Base.map(f, eff::Eff) = TypeClasses.map(f, eff)
-function TypeClasses.map(f, eff::Eff)
+function Base.map(f, eff::Eff)
+  println("map::Eff eff = $eff")
   TypeClasses.flatmap(noeffect ∘ f, eff)
 end
 function TypeClasses.flatmap(f, eff::Eff)
@@ -58,4 +61,4 @@ function TypeClasses.flatmap(f, eff::Eff)
 end
 TypeClasses.flatten(eff::Eff) = TypeClasses.flatmap(identity, eff)
 # there is probably a more efficient version, but this should be fine for now
-TypeClasses.ap(ff::Eff, fa::Eff) = TypeClasses.default_ap(ff, fa)
+TypeClasses.ap(ff::Eff, fa::Eff) = TypeClasses.default_ap_having_map_flatmap(ff, fa)

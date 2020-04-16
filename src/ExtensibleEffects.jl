@@ -1,5 +1,9 @@
 module ExtensibleEffects
-export Continuation, NoEffect, Eff, noeffect, effect, runhandlers, runhandler, runlast, autorun, @syntax_eff
+export Continuation, Eff, NoEffect,
+  effect, noeffect,
+  runhandlers, @runhandlers,
+  autorun,
+  @syntax_eff
 
 include("core.jl")
 include("effecthandler.jl")

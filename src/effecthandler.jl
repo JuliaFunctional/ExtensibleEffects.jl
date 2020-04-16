@@ -4,32 +4,49 @@
 
 run all handlers such that the first handler will define the most outer container
 """
-function runhandlers(all_handlers::Union{Tuple, Vector}, eff)
-  # handle from right to left to have a result type which nesting mimicks the given type-order
-  all_handled = Base.foldr(all_handlers, init=eff) do handler, acc
-    runhandler(handler, acc)
-  end
-  runlast(all_handled)
+runhandlers(single_handler, eff) = runlast_ifpossible(runhandler(single_handler, eff))
+runhandlers(all_handlers::Vector, eff) = runhandlers(tuple(all_handlers...), eff)
+runhandlers(all_handlers::Tuple, eff) = runlast_ifpossible(_runhandlers(all_handlers, eff))
+_runhandlers(all_handlers::Tuple{}, eff) = eff
+function _runhandlers(all_handlers::Tuple, eff)
+  subresult = _runhandlers(Base.tail(all_handlers), eff)
+  runhandler(first(all_handlers), subresult)
 end
+
 
 """
 extract final value from Eff with all effects (but NoEffect) already run
 """
 function runlast(eff::Eff)
   # at last all Effects have stacked up a last NoEffect, which we can simply run
-  final = runhandler(NoEffect, eff)
+  # to support more complex Functors, we add extra logic ``runhandler(NestedEff)`` which itself again produces a last NoEffect
+  final = runhandler(NoEffect)
   @assert isempty(final.cont) "expected eff without continuation, but found cont=$(final.cont)"
   @assert final.value isa NoEffect "not all effects have been handled, found $(final.value)"
   final.value.value
 end
 
+"""
+like ``ExtensibleEffects.runlast``, however if the Eff is not yet completely handled, it just returns it.
+
+Note that it applies ``runhandler(NoEffect, eff)`` and returns this.
+"""
+function runlast_ifpossible(eff::Eff)
+  # at last all Effects have stacked up a last NoEffect, which we can simply run
+  # to support more complex Functors, we add extra logic ``runhandler(NestedEff)`` which itself again produces a last NoEffect
+  final = runhandler(NoEffect, eff)
+
+  if isempty(final.cont) && final.value isa NoEffect
+    final.value.value
+  else
+    final
+  end
+end
 
 """
-convenience wrapper to better use runhandler in |>
-"""
-runhandler(handler) = eff -> runhandler(handler, eff)
+    runhanlder(handler, eff::Eff)
+    runhanlder(handler, eff::Eff, context)
 
-"""
 key method to run an effect on some effecthandler Eff
 
 note that we represent effectrunners as plain types in order to associate
@@ -49,7 +66,6 @@ function runhandler(handler, eff::Eff)
   end
 end
 
-
 # effecthandler interface
 # =======================
 # to support an effect, a type needs to implement three functions
@@ -60,20 +76,20 @@ end
 # eff_flatmap
 # -----------
 
-function _eff_flatmap(handler, interpreted_continuation::Continuation, value)
+function _eff_flatmap(handler, interpreted_continuation::Continuation, value, context)
   # provide convenience wrapper if someone forgets to return an Eff
-  result = eff_flatmap(handler, interpreted_continuation, value)
+  result = eff_flatmap(handler, interpreted_continuation, value, context)
   isa(result, Eff) ? result : noeffect(result)
 end
 
 """
-    eff_flatmap(handler, interpreted_continuation, value)
-    eff_flatmap(interpreted_continuation, value)
+    ExtensibleEffects.eff_flatmap(handler, interpreted_continuation, value)
+    ExtensibleEffects.eff_flatmap(interpreted_continuation, value)
 
-This function is only called if ``eff_applies(handler, value)==true``.
 Overwrite this for your custom effect handler to handle your effect.
+This function is only called if ``eff_applies(handler, value)==true``.
 
-While for custom effects it is handy to dispatch on the handler itself, in the simple cases
+While for custom effects it is handy to dispatch on the handler itself, in simple cases
 `handler == typeof(value)` and hence, we allow to ommit it.
 
 Parameters
@@ -85,7 +101,6 @@ Return
 ------
 If you do not return an ``Eff``, the result will be wrapped into `noeffect` automatically,
 i.e. assuming the effect is handled afterwards.
-
 """
 eff_flatmap(handler, interpreted_continuation::Continuation, value) = eff_flatmap(interpreted_continuation, value)
 
@@ -99,9 +114,10 @@ function _eff_pure(handler, value)
 end
 
 """
-    eff_pure(handler, value)::Union{handledtype, Eff}
+    ExtensibleEffects.eff_pure(handler, value)
 
-Overwrite this for your custom effect handler, return either EffType or an Eff.
+Overwrite this for your custom effect handler, return either EffType or a plain value.
+Plain values will be wrapped with `noeffect` automatically.
 """
 function eff_pure end
 
@@ -109,5 +125,15 @@ function eff_pure end
 # eff_applies
 # -----------
 
-eff_applies(handler::Type{T}, value::T) where T = true
-eff_applies(handler::Type{T}, value::Other) where {T, Other} = false
+"""
+    ExtensibleEffects.eff_applies(handler::Type{YourHandlerType}, value::ToBeHandledEffectType) = true
+
+Overwrite this function like above to indicate that a concrete effect is handled by a handler.
+In most cases you will have ``YourHandlerType === ToBeHandledEffectType``, like for ``Vector`` or similar.
+
+Sometimes you need extra information without which you cannot run a specific effect. Then you need to link
+the specific handler containing the required information. E.g. `Callable` needs `args` and `kwargs` to be run,
+which are captured in the handler type `CallWith(args, kwargs)`.
+Hence above you would choose YourHandlerType = `CallWith`, and ToBeHandledEffectType = `Callable`.
+"""
+eff_applies(handler, value) = false
