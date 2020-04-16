@@ -8,7 +8,7 @@ inner container of the result value.
 autorun(eff::Eff) = runlast_ifpossible(_autorun((), eff))
 function _autorun(handlers, eff::Eff)
   # for autorun we only deal with simple handlers `handler = typeof(eff.value)` where `eff_applies(handler, eff.value)`
-  handler = eff_normalize_handlertype(typeof(eff.value))
+  handler = eff_autohandler(eff.value)
 
   if handler ∈ handlers || !eff_applies(handler, eff.value)
     # If we encounter a handler which we already triggered, we don't want to trigger it again, however
@@ -37,4 +37,10 @@ function _autorun(handlers, eff::Eff)
   end
 end
 
-eff_normalize_handlertype(T) = T.name.wrapper
+"""
+    eff_autohandler(value) = typeof(value).name.wrapper
+
+Overwrite this if the default autohandler extraction does not work for your case.
+E.g. for ``value::Vector`` the default would return `Array`, hence we need to overwrite it individually.
+"""
+eff_autohandler(value) = typeof(value).name.wrapper

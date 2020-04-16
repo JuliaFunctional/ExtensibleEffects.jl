@@ -29,7 +29,7 @@ either_eff_flatmap(continuation, a::Right) = continuation(a.value)
 either_eff_flatmap(continuation, a::Left) = a
 
 # for Vector we need to overwrite `eff_normalize_handlertype`, as the default implementation would lead `Array`
-ExtensibleEffects.eff_normalize_handlertype(::Type{<:Vector}) = Vector
+ExtensibleEffects.eff_autohandler(value::Vector) = Vector
 function ExtensibleEffects.eff_flatmap(continuation, a::Vector)
   vector_of_eff_of_vector = map(continuation, a)
   eff_of_tuple_of_vector = tupled(vector_of_eff_of_vector...)
@@ -45,6 +45,9 @@ function ExtensibleEffects.eff_flatmap(continuation, a::Union{Task, Future})
   continuation(fetch(a))
 end
 
+
+# Callable
+# --------
 
 struct CallWith{Args, Kwargs}
   args::Args
