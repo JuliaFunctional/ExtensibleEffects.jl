@@ -245,14 +245,22 @@ myeff = Callable(function(args...; kwargs...)
 end)
 @test myeff(3) == (5, 8)
 
+# we provide a custom macro for this common callable pattern which does exactly the same
 
+myeff2 = @runcallable @syntax_eff begin
+  a = Callable(x -> x+2)
+  b = Callable(x -> a + x)
+  @pure a, b
+end
+@test myeff2(3) == (5, 8)
 
-myeff = Callable(function(args...; kwargs...)
-  @runhandlers CallWith(args...; kwargs...) @syntax_eff begin
-    v = [1,3,4]
-    a = Callable(x -> x+v)
-    o = isodd(a) ? Option(5) : Option()
-    b = Callable(x -> x + a + o)
-    @pure v, a, o, b
-  end
-end)
+myeff3 = @runcallable @syntax_eff begin
+  v = [1,3,4]
+  a = Callable(x -> x+v)
+  o = isodd(a) ? Option(100) : Option()
+  b = Callable(x -> x + a + o)
+  @pure v, a, o, b
+end
+
+@test flatten(myeff3(1)) == [(4,5,100,106)]
+@test flatten(myeff3(2)) == [(1,3,100,105), (3,5,100,107)]

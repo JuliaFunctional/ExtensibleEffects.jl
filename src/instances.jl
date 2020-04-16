@@ -58,3 +58,18 @@ ExtensibleEffects.eff_pure(handler::CallWith, a) = a
 function ExtensibleEffects.eff_flatmap(callwith, continuation, a::Callable)
   continuation(a(callwith.args...; callwith.kwargs...))
 end
+
+"""
+    @runcallable eff
+
+translates to
+
+    Callable(function(args...; kwargs...)
+      @runhandlers CallWith(args...; kwargs...) eff
+    end)
+"""
+macro runcallable(block)
+  esc(:(Callable(function(args...; kwargs...)
+    ExtensibleEffects.@runhandlers ExtensibleEffects.CallWith(args...; kwargs...) $block
+  end)))
+end
