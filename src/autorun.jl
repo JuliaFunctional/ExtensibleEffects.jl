@@ -5,10 +5,10 @@ special effectrunner which recognizes effecttypes used within `eff` and calls th
 first effect found will at the end be the most outer container, and the last different effect found will be the most
 inner container of the result value.
 """
-autorun(eff::Eff, context = nocontext) = runlast_ifpossible(_autorun((), eff, context))
+autorun(eff::Eff) = runlast_ifpossible(_autorun((), eff))
 function _autorun(handlers, eff::Eff)
   # for autorun we only deal with simple handlers `handler = typeof(eff.value)` where `eff_applies(handler, eff.value)`
-  handler = normalize_handlertype(typeof(eff.value))
+  handler = eff_normalize_handlertype(typeof(eff.value))
 
   if handler ∈ handlers || !eff_applies(handler, eff.value)
     # If we encounter a handler which we already triggered, we don't want to trigger it again, however
@@ -20,7 +20,7 @@ function _autorun(handlers, eff::Eff)
     interpreted_continuation = if isempty(eff.cont)
       Continuation()
     else
-      Continuation(x -> _autorun(handlers, eff.cont(x), context))
+      Continuation(x -> _autorun(handlers, eff.cont(x)))
     end
     Eff(eff.value, interpreted_continuation)
   else
@@ -31,10 +31,10 @@ function _autorun(handlers, eff::Eff)
     interpreted_continuation = if isempty(eff.cont)
       Continuation(x -> _eff_pure(handler, x))
     else
-      Continuation(x -> runhandler(handler, _autorun(handlers_new, eff.cont(x), context), context))
+      Continuation(x -> runhandler(handler, _autorun(handlers_new, eff.cont(x))))
     end
-    _eff_flatmap(handler, interpreted_continuation, eff.value, context)
+    _eff_flatmap(handler, interpreted_continuation, eff.value)
   end
 end
 
-normalize_handlertype(T) = T.name.wrapper
+eff_normalize_handlertype(T) = T.name.wrapper

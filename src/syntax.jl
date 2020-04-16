@@ -36,53 +36,34 @@ using Monadic
 """
 macro syntax_eff(block::Expr)
   block = macroexpand(__module__, block)
-  esc(syntax_eff(block))
+  eff = syntax_eff(block)
+  esc(:(ExtensibleEffects.autorun($eff)))
 end
-
-iscodeblock(expr::Expr) = expr.head === :block
-iscodeblock(other) = false
-
-function parse_syntax_eff_args(a, b)
-  one_is_codeblock = iscodeblock(a) || iscodeblock(b)
-  both_are_codeblocks = iscodeblock(a) && iscodeblock(b)
-  @assert one_is_codeblock && !both_are_codeblocks  "one and exactly one of the arguments has to be a codeblock"
-
-  if iscodeblock(a)
-    wrapper = :identity
-    block = a
-    effecthandlers = b
-  else
-    wrapper = a
-    block = b
-    effecthandlers = :none
-  end
-  wrapper, block, effecthandlers
-end
-function parse_syntax_eff_args(a, b, c)
-  @assert iscodeblock(b) "expecting the middle argument to be the code block"
-  a, b, c  # wrapper, block, effecthandlers
-end
-
-
-macro syntax_eff(wrapper, block)
-  wrapper, block = parse_syntax_eff_args(a, b)
+macro syntax_eff(wrapper, block::Expr)
   block = macroexpand(__module__, block)
   eff = syntax_eff(block, wrapper)
   esc(:(ExtensibleEffects.autorun($eff)))
 end
-macro syntax_eff(a, b)
-  wrapper, block, effecthandlers = parse_syntax_eff_args(a, b, c)
+macro syntax_eff_noautorun(block::Expr)
   block = macroexpand(__module__, block)
-  esc(syntax_eff(block, wrapper, effecthandlers))
+  esc(syntax_eff(block))
+end
+macro syntax_eff_noautorun(wrapper, block::Expr)
+  block = macroexpand(__module__, block)
+  esc(syntax_eff(block, wrapper))
 end
 
 function syntax_eff(block::Expr, extra_wrapper = :identity)
+  @assert iscodeblock(block)  "expecting code block as block argument"
   monadic(
     :(ExtensibleEffects.TypeClasses.map),
     :(ExtensibleEffects.TypeClasses.flatmap),
     extra_wrapper === :identity ? :(ExtensibleEffects.effect) : :(ExtensibleEffects.effect ∘ $extra_wrapper),
     block)
 end
+
+iscodeblock(expr::Expr) = expr.head === :block
+iscodeblock(other) = false
 
 
 """
@@ -103,6 +84,4 @@ end
 """
 macro runhandlers(handlers, eff)
   esc(:(ExtensibleEffects.runhandlers($handlers, $eff)))
-end
-
 end

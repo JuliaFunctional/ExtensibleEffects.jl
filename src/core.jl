@@ -53,7 +53,6 @@ Base.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
 
 TypeClasses.pure(::Type{<:Eff}, a) = noeffect(a)
 function Base.map(f, eff::Eff)
-  println("map::Eff eff = $eff")
   TypeClasses.flatmap(noeffect ∘ f, eff)
 end
 function TypeClasses.flatmap(f, eff::Eff)

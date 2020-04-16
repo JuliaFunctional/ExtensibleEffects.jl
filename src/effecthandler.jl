@@ -20,7 +20,7 @@ extract final value from Eff with all effects (but NoEffect) already run
 function runlast(eff::Eff)
   # at last all Effects have stacked up a last NoEffect, which we can simply run
   # to support more complex Functors, we add extra logic ``runhandler(NestedEff)`` which itself again produces a last NoEffect
-  final = runhandler(NoEffect)
+  final = runhandler(NoEffect, eff)
   @assert isempty(final.cont) "expected eff without continuation, but found cont=$(final.cont)"
   @assert final.value isa NoEffect "not all effects have been handled, found $(final.value)"
   final.value.value
@@ -76,9 +76,9 @@ end
 # eff_flatmap
 # -----------
 
-function _eff_flatmap(handler, interpreted_continuation::Continuation, value, context)
+function _eff_flatmap(handler, interpreted_continuation::Continuation, value)
   # provide convenience wrapper if someone forgets to return an Eff
-  result = eff_flatmap(handler, interpreted_continuation, value, context)
+  result = eff_flatmap(handler, interpreted_continuation, value)
   isa(result, Eff) ? result : noeffect(result)
 end
 
@@ -102,7 +102,7 @@ Return
 If you do not return an ``Eff``, the result will be wrapped into `noeffect` automatically,
 i.e. assuming the effect is handled afterwards.
 """
-eff_flatmap(handler, interpreted_continuation::Continuation, value) = eff_flatmap(interpreted_continuation, value)
+eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_continuation, value)
 
 
 # eff_pure
@@ -126,10 +126,10 @@ function eff_pure end
 # -----------
 
 """
-    ExtensibleEffects.eff_applies(handler::Type{YourHandlerType}, value::ToBeHandledEffectType) = true
+    ExtensibleEffects.eff_applies(handler::YourHandlerType, value::ToBeHandledEffectType) = true
 
 Overwrite this function like above to indicate that a concrete effect is handled by a handler.
-In most cases you will have ``YourHandlerType === ToBeHandledEffectType``, like for ``Vector`` or similar.
+In most cases you will have ``YourHandlerType = Type{ToBeHandledEffectType}``, like for ``Vector`` or similar.
 
 Sometimes you need extra information without which you cannot run a specific effect. Then you need to link
 the specific handler containing the required information. E.g. `Callable` needs `args` and `kwargs` to be run,
