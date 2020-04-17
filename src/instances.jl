@@ -63,6 +63,7 @@ function ExtensibleEffects.eff_flatmap(callwith, continuation, a::Callable)
 end
 
 """
+    runcallable(eff)
     @runcallable eff
 
 translates to
@@ -71,8 +72,24 @@ translates to
       @runhandlers CallWith(args...; kwargs...) eff
     end)
 """
-macro runcallable(block)
-  esc(:(Callable(function(args...; kwargs...)
-    ExtensibleEffects.@runhandlers ExtensibleEffects.CallWith(args...; kwargs...) $block
-  end)))
+function runcallable(eff)
+  Callable(function(args...; kwargs...)
+    runhandlers(ExtensibleEffects.CallWith(args...; kwargs...), eff)
+  end)
 end
+macro runcallable(block)
+  esc(:(ExtensibleEffects.runcallable($block)))
+end
+
+
+# Writer
+# pure is only available for Acc with Neutral, hence the handler type needs to be Writer{Acc}
+ExtensibleEffects.eff_applies(handler::Type{<:Writer{Acc}}, value::Writer{Acc}) where Acc = true 
+ExtensibleEffects.eff_autohandler(value::Writer{Acc}) where Acc = Writer{Acc}
+function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
+  eff_of_writer = continuation(a.value)
+  map(eff_of_writer) do b
+    Writer(a.acc ⊕ b.acc, b.value)
+  end
+end
+# TODO do Writer and Iterable

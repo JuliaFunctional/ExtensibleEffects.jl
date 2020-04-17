@@ -264,3 +264,31 @@ end
 
 @test flatten(myeff3(1)) == [(4,5,100,106)]
 @test flatten(myeff3(2)) == [(1,3,100,105), (3,5,100,107)]
+
+
+# Really nice to have: We create optimal code!!!
+@code_native flatten(myeff3(1))
+comparef(x) = [(v, v+x, 100, v+x+100) for v in [1,3,4] if isodd(v+x)]
+@code_native comparef(1)  # surprisingly, this is even a bit larger in machine code
+
+
+# Writer
+# ------
+
+effwriter = @syntax_eff begin
+  a = Writer("hello ", 3)
+  b = Writer("world!", 5)
+  @pure a, b
+end
+@test effwriter.acc == "hello world!"
+@test effwriter.value == (3, 5)
+
+effwriter2 = @syntax_eff begin
+  a = Writer("hello ", 3)
+  b = collect(a:a+2)
+  c = Writer("world!", b*b)
+  @pure a, b, c
+end
+
+@test effwriter2.acc == "hello world!world!world!"
+@test effwriter2.value == [(3, 3, 9), (3, 4, 16), (3, 5, 25)]

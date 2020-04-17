@@ -4,7 +4,7 @@ export Continuation, Eff, NoEffect,
   runhandlers, @runhandlers,
   autorun,
   @syntax_eff, @syntax_eff_noautorun,
-  CallWith, @runcallable  # Callable handler
+  CallWith, runcallable, @runcallable  # Callable handler
 
 include("core.jl")
 include("effecthandler.jl")
