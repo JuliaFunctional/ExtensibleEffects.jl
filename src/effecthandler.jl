@@ -4,15 +4,16 @@
 
 run all handlers such that the first handler will define the most outer container
 """
-runhandlers(single_handler, eff) = runlast_ifpossible(runhandler(single_handler, eff))
-runhandlers(all_handlers::Vector, eff) = runhandlers(tuple(all_handlers...), eff)
-runhandlers(all_handlers::Tuple, eff) = runlast_ifpossible(_runhandlers(all_handlers, eff))
-_runhandlers(all_handlers::Tuple{}, eff) = eff
-function _runhandlers(all_handlers::Tuple, eff)
+runhandlers(single_handler, eff::Eff) = runlast_ifpossible(runhandler(single_handler, eff))
+runhandlers(all_handlers::Vector, eff::Eff) = runhandlers(tuple(all_handlers...), eff)
+runhandlers(all_handlers::Tuple, eff::Eff) = runlast_ifpossible(_runhandlers(all_handlers, eff))
+_runhandlers(all_handlers::Tuple{}, eff::Eff) = eff
+function _runhandlers(all_handlers::Tuple, eff::Eff)
   subresult = _runhandlers(Base.tail(all_handlers), eff)
   runhandler(first(all_handlers), subresult)
 end
 
+runhandlers(any, not_eff) = error("can only apply runhandlers onto an `Eff`, got a ``$(typeof(not_eff))`")
 
 """
 extract final value from Eff with all effects (but NoEffect) already run
@@ -133,7 +134,7 @@ In most cases you will have ``YourHandlerType = Type{ToBeHandledEffectType}``, l
 
 Sometimes you need extra information without which you cannot run a specific effect. Then you need to link
 the specific handler containing the required information. E.g. `Callable` needs `args` and `kwargs` to be run,
-which are captured in the handler type `CallWith(args, kwargs)`.
-Hence above you would choose YourHandlerType = `CallWith`, and ToBeHandledEffectType = `Callable`.
+which are captured in the handler type `CallableHandler(args, kwargs)`.
+Hence above you would choose YourHandlerType = `CallableHandler`, and ToBeHandledEffectType = `Callable`.
 """
 eff_applies(handler, value) = false

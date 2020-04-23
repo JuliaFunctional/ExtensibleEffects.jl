@@ -29,6 +29,7 @@ noeffect(value) = Eff(NoEffect(value))
 mark a value as an effect
 """
 effect(value) = Eff(value)
+effect(eff::Eff) = eff # if we find a Eff effect, we just directly use it
 
 
 # Functionalities for Continuation

@@ -37,6 +37,12 @@ r3 = runhandlers(Vector, program3)
 @test r3 == [1,1,1,4,4,4]
 @test autorun(program3) == [1,1,1,4,4,4]
 
+iterables = @syntax_eff begin
+  r0 = Iterable([1,4])
+  Iterable([r0, r0, r0])
+end
+@test collect(iterables) == [1,1,1,4,4,4]
+
 program4 = @syntax_eff_noautorun begin
   a = [1,2,3]
   b = iftrue(a % 2 == 0) do
@@ -223,6 +229,37 @@ end
 @test fetch(efffuture) == (3,5)
 
 
+# Writer
+# ------
+
+effwriter = @syntax_eff begin
+  a = Writer("hello ", 3)
+  b = Writer("world!", 5)
+  @pure a, b
+end
+@test effwriter.acc == "hello world!"
+@test effwriter.value == (3, 5)
+
+effwriter2 = @syntax_eff begin
+  a = Writer("hello ", 3)
+  b = collect(a:a+2)
+  c = Writer("world!", b*b)
+  @pure a, b, c
+end
+
+@test effwriter2.acc == "hello world!world!world!"
+@test effwriter2.value == [(3, 3, 9), (3, 4, 16), (3, 5, 25)]
+
+effwriter3 = @runhandlers (WriterHandler("PURE"), Vector) @syntax_eff_noautorun begin
+  a = Writer("hello ", 3)
+  b = collect(a:a+2)
+  c = Writer("world!", b*b)
+  @pure a, b, c
+end
+@test effwriter3.acc == "hello world!world!world!PURE"
+@test effwriter3.value == [(3, 3, 9), (3, 4, 16), (3, 5, 25)]
+
+
 # Callable
 # --------
 
@@ -237,7 +274,7 @@ end
 @test myflatmap(3) == (5, 8)
 
 myeff = Callable(function(args...; kwargs...)
-  @runhandlers CallWith(args...; kwargs...) @syntax_eff begin
+  @runhandlers CallableHandler(args...; kwargs...) @syntax_eff begin
     a = Callable(x -> x+2)
     b = Callable(x -> a + x)
     @pure a, b
@@ -272,23 +309,49 @@ comparef(x) = [(v, v+x, 100, v+x+100) for v in [1,3,4] if isodd(v+x)]
 @code_native comparef(1)  # surprisingly, this is even a bit larger in machine code
 
 
-# Writer
-# ------
+# State
+# -----
 
-effwriter = @syntax_eff begin
-  a = Writer("hello ", 3)
-  b = Writer("world!", 5)
+state_flatmap = @syntax_flatmap begin
+  a = State(x -> (x+2, x*x))
+  b = State(x -> (a + x, x))
   @pure a, b
 end
-@test effwriter.acc == "hello world!"
-@test effwriter.value == (3, 5)
+@test state_flatmap(3) == ((5,14), 9)
 
-effwriter2 = @syntax_eff begin
-  a = Writer("hello ", 3)
-  b = collect(a:a+2)
-  c = Writer("world!", b*b)
-  @pure a, b, c
+state_eff = @runstate @syntax_eff begin
+  a = State(x -> (x+2, x*x))
+  b = State(x -> (a + x, x))
+  @pure a, b
+end
+@test state_eff(3) == ((5,14), 9)
+
+# nesting Callable and State works well, because Callable uses `@insert_into_runhandlers` to add its handler.
+callable_state_eff = @runcallable @runstate @syntax_eff begin
+  v = [1,3,4]
+  a = State(s -> (v+s, s*s))
+  o = isodd(a) ? Option(100) : Option()
+  b = Callable(x -> x + a + o)
+  @pure v, a, o, b
 end
 
-@test effwriter2.acc == "hello world!world!world!"
-@test effwriter2.value == [(3, 3, 9), (3, 4, 16), (3, 5, 25)]
+vector, state = callable_state_eff(1)(3)
+@test state == 6561
+@test flatten(vector) == [(4, 85, 100, 186)]
+
+# CAUTION: the other way around it does not interact well, actually we implemented to throw an error
+@test_throws ErrorException @runstate @runcallable @syntax_eff begin
+  v = [1,3,4]
+  a = State(s -> (v+s, s*s))
+  o = isodd(a) ? Option(100) : Option()
+  b = Callable(x -> x + a + o)
+  @pure v, a, o, b
+end
+
+# We could have allowed for this interaction as well, using `@insert_into_runhandlers`, however this would lead
+# to non-well-formed results:
+# The outer level should be a State then, however it is not, it just has a plain Callable inside, without added state,
+# while the state is actually added WITHIN the callable.
+
+
+# TODO Iterable
