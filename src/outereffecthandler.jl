@@ -1,8 +1,9 @@
-using ASTParser
-const nesteddotparser = Parsers.NestedDot()
+using ExprParsers
+
+const nesteddotparser = EP.NestedDot()
 splitdots(value) = [value]
 function splitdots(expr::Expr)
-  parsed = nesteddotparser(expr)
+  parsed = parse_expr(nesteddotparser, expr)
   insert!(parsed.properties, 1, parsed.base)
 end
 isrunhandlerscall(value) = false
