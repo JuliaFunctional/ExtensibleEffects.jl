@@ -17,12 +17,11 @@ function _autorun(handlers, eff::Eff)
 
     # The same we want to happen if we found a handler which cannot be handled automatically.
     # We just skip it and leave it for later handling.
-    interpreted_continuation = if isempty(eff.cont)
-      Continuation()
+    if isempty(eff.cont)
+      eff
     else
-      Continuation(x -> _autorun(handlers, eff.cont(x)))
+      Eff(eff.value, Continuation(x -> _autorun(handlers, eff.cont(x))))
     end
-    Eff(eff.value, interpreted_continuation)
   else
     # If this is a new valid handler, we trigger standard handler interpretation, with the one difference, that before
     # recursing into runhandler on the interpreted_continuation, we want to handle all yet unseen nested handlers.

@@ -20,6 +20,12 @@ git-tree-sha1 = "9b34765f66b3b93240fed1f80afb476afc61dea5"
 uuid = "83eed652-29e8-11e9-12da-a7c29d64ffc9"
 version = "0.3.0"
 
+[[ExprParsers]]
+deps = ["ProxyInterface", "SimpleMatch", "StructEquality"]
+git-tree-sha1 = "bee35fd9311dc95fcb2b1c6dd89b392e1eeadf6a"
+uuid = "c5caad1f-83bd-4ce8-ac8e-4b29921e994e"
+version = "0.3.0"
+
 [[Future]]
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
@@ -43,6 +49,11 @@ version = "0.5.5"
 [[Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+
+[[Monadic]]
+git-tree-sha1 = "bc9c1dec85a4c4fa3a6b696ab630f948bfc9346c"
+uuid = "4a6f0533-cc52-4fcf-a409-c6c05775ac80"
+version = "0.1.0"
 
 [[ProxyInterface]]
 git-tree-sha1 = "e2c802525c0533d38c62b026e50e73ede4d33d7a"

@@ -34,6 +34,7 @@ function _insert_into_runhandlers!(handler, expr::Expr)
   end
 end
 
+insert_into_runhandlers!(handler, symbol::Symbol) = :(ExtensibleEffects.runhandlers($handler, $symbol))
 function insert_into_runhandlers!(handler, expr::Expr)
   found_runhandlers = _insert_into_runhandlers!(handler, expr)
   found_runhandlers ? expr : :(ExtensibleEffects.runhandlers($handler, $expr))

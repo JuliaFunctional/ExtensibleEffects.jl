@@ -1,6 +1,5 @@
 using ExtensibleEffects
 using DataTypesBasic
-DataTypesBasic.@overwrite_Some
 using TypeClasses
 using Distributed
 
@@ -16,33 +15,37 @@ function ExtensibleEffects.eff_flatmap(continuation, a)
   map(flatten, eff_of_a_of_a)
 end
 
-
-# Identity/NoEffect
-# -----------------
+# NoEffect
+# --------
 ExtensibleEffects.eff_applies(handler::Type{<:NoEffect}, value::NoEffect) = true
 ExtensibleEffects.eff_pure(::Type{<:NoEffect}, a) = a
 ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
 
-# Option
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:Option}, value::Option) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Option) = option_eff_flatmap(continuation, a)
-option_eff_flatmap(continuation, a::Some) = continuation(a.value)
-option_eff_flatmap(continuation, a::None) = a
+# Identity
+# --------
+# we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
+ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
+ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = a
+# ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
+# # special support for interactions with Nothing, Const
+# ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
+ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
 
-# Try
-# ---
-ExtensibleEffects.eff_applies(handler::Type{<:Try}, value::Try) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Try) = try_eff_flatmap(continuation, a)
-try_eff_flatmap(continuation, a::Success) = continuation(a.value)
-try_eff_flatmap(continuation, a::Failure) = a
+# Nothing
+# -------
+ExtensibleEffects.eff_applies(handler::Type{Nothing}, value::Nothing) = true
+ExtensibleEffects.eff_flatmap(continuation, a::Nothing) = nothing
+# usually Nothing does not have a pure, however within Eff, it is totally fine,
+# as continuations on Nothing never get evaluated anyways
+ExtensibleEffects.eff_pure(::Type{Nothing}, a) = a
 
-# Either
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Either) = either_eff_flatmap(continuation, a)
-either_eff_flatmap(continuation, a::Right) = continuation(a.value)
-either_eff_flatmap(continuation, a::Left) = a
+# Const
+# -----
+ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
+ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
+# usually Const does not have a pure, however within Eff, it is totally fine,
+# as continuations on Const never get evaluated anyways
+ExtensibleEffects.eff_pure(::Type{Const}, a) = a
 
 # Iterable
 # --------
@@ -54,13 +57,29 @@ ExtensibleEffects.eff_applies(handler::Type{<:Iterable}, value::Iterable) = true
 ExtensibleEffects.eff_applies(handler::Type{<:Vector}, value::Vector) = true
 # for Vector we need to overwrite `eff_normalize_handlertype`, as the default implementation would lead `Array`
 ExtensibleEffects.eff_autohandler(value::Vector) = Vector
-# eff_flatmap follows the generic implementation
+# eff_flatmap, eff_pure follow the generic implementation
+function ExtensibleEffects.eff_flatmap(continuation, a::Vector)
+  eff_of_a_of_a = flip_types(map(a) do x
+    @syntax_eff_noautorun begin
+      # we surround the continuation by start and end to ensure several branches do not interfere with oneanother
+      Eff(BranchStart())
+      y = continuation(x)
+      Eff(BranchEnd(y))
+    end
+  end)
+  eff_of_a = map(flatten, eff_of_a_of_a)
+  eff_of_a
+end
 
-# ContextManager
-# --------------
-ExtensibleEffects.eff_applies(handler::Type{<:ContextManager}, value::ContextManager) = true
-ExtensibleEffects.eff_pure(::Type{<:ContextManager}, a) = a
-ExtensibleEffects.eff_flatmap(continuation, c::ContextManager) = c(continuation)
+# function ExtensibleEffects.eff_flatmap(continuation, a::Vector)
+#   eff_of_a_of_a = flip_types(map(x -> flatmap(y -> Eff(BranchEnd(y)), continuation(x)), a))
+#   eff_of_a = map(flatten, eff_of_a_of_a)
+#   # prepend BranchStart indicator
+#   flatmap(Eff(BranchStart())) do _
+#     eff_of_a
+#   end
+# end
+
 
 # Future/Task
 # -----------
@@ -93,6 +112,54 @@ ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_
 # autohandler and eff_flatmap are the same
 
 
+# ContextManager
+# --------------
+# the trivial definition for contextmanager does not work, as handling one effect does not mean that all effects
+# are already handled, and hence it is more like a lazy thing.
+# However for a context manager it does not make sense to first execute completely and then someone later the value is
+# used. Hence we need to wrap it into its own handler
+struct ContextManagerHandler{F}
+  cont::F
+end
+ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextManager) = true
+ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
+function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c::ContextManager)
+  result = c(continuation)
+  # Core.println("continuation $(objectid(continuation)), result = $result.")
+  # TODO @assert result isa Eff{<:NoEffect} "ContextManager should be run after all other effects, however found result ``$(result)`` of type $(typeof(result))"
+  result
+end
+
+"""
+    @runcontextmanager(eff)
+
+translates to
+
+    ContextManager(function(cont)
+      @insert_into_runhandlers ContextManagerHandler(cont) eff
+    end)
+
+Thanks to `@insert_into_runhandlers` this outer runner can compose well with other outer runners.
+"""
+macro runcontextmanager(expr)
+  esc(:(ExtensibleEffects.DataTypesBasic.ContextManager(function(cont)
+    ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.ContextManagerHandler(cont), $expr)
+  end)))
+end
+
+"""
+    @runcontextmanager_(eff)
+
+like `@runcontextmanager(eff)`, but immediately runs the final ContextManager
+"""
+macro runcontextmanager_(expr)
+  esc(:(
+    ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.ContextManagerHandler(Base.identity), $expr)
+  ))
+end
+
+
+
 # Callable
 # --------
 
@@ -121,7 +188,7 @@ translates to
 Thanks to `@insert_into_runhandlers` this outer runner can compose well with other outer runners.
 """
 macro runcallable(expr)
-  esc(:(Callable(function(args...; kwargs...)
+  esc(:(ExtensibleEffects.TypeClasses.Callable(function(args...; kwargs...)
     ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.CallableHandler(args...; kwargs...), $expr)
   end)))
 end

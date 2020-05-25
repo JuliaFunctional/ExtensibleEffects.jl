@@ -17,13 +17,19 @@ function Base.show(io::IO, eff::Eff)
   print(io, "Eff(value=$(eff.value), length(cont)=$(length(eff.cont.functions)))")
 end
 
-# We reuse the Identity Monad from DataTypesBasic here, but give it a more expressive name
-const NoEffect = Identity
+"""
+special Wrapper, which is completely peeled of again
+
+Comparing to Identity, Identity{T} results in Identity{T}, while NoEffect{T} results in plain T.
+"""
+struct NoEffect{T}
+  value::T
+end
 
 """
 mark a value as no effect, but plain value
 """
-noeffect(value) = Eff(NoEffect(value))
+noeffect(value) = Eff(NoEffect(value))  # everything reduces to the Identity Monad
 
 """
 mark a value as an effect
