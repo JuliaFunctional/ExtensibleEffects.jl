@@ -1,13 +1,3 @@
-abstract type Branch end
-
-struct BranchStart{T} <: Branch
-  value::T
-end
-BranchStart() = BranchStart(())
-struct BranchEnd{T} <: Branch
-  value::T
-end
-
 """
     runhandlers(handlers, eff)
     runhandlers((Vector, Option), eff)::Vector{Option{...}}
@@ -28,8 +18,7 @@ runhandlers(any, not_eff) = error("can only apply runhandlers onto an `Eff`, got
 """
 extract final value from Eff with all effects (but Identity) already run
 """
-function runlast(eff::Eff)
-  final = runhandler(NoEffect, eff) # finally run NoEffect and BranchStart/BranchEnd by running a dummy hanlder NoEffect
+function runlast(final::Eff)
   @assert isempty(final.cont) "expected eff without continuation, but found cont=$(final.cont)"
   @assert final.value isa NoEffect "not all effects have been handled, found $(final.value)"
   final.value.value
@@ -37,11 +26,8 @@ end
 
 """
 like ``ExtensibleEffects.runlast``, however if the Eff is not yet completely handled, it just returns it.
-
-Note that it applies ``runhandler(Identity, eff)`` and returns this.
 """
-function runlast_ifpossible(eff::Eff)
-  final = runhandler(NoEffect, eff)  # finally run NoEffect and BranchStart/BranchEnd by running a dummy hanlder NoEffect
+function runlast_ifpossible(final::Eff)
   if isempty(final.cont) && final.value isa NoEffect
     final.value.value
   else
@@ -68,29 +54,6 @@ function runhandler(handler, eff::Eff)
 
   if eff_applies(handler, eff.value)
     _eff_flatmap(handler, interpreted_continuation, eff.value)
-
-  elseif eff.value isa NoEffect
-    # NoEffect are directly evaluated so that they can represent the current execution scope
-    # otherwise, we would have NoEffect with several continuations, which themselves return NoEffect, which may
-    # lead to surprising results due to lazy evaluations of strict semantics
-    # this way everything is always executed immediately
-    interpreted_continuation(eff.value.value)
-
-  elseif eff.value isa BranchStart
-    # as Eff is only linear, pure use of NoEffect would lead to branches beeing merged as soon as everything is NoEffect
-    # however we would like to ensure, that a continuation within a branch, does never execute code from a following
-    # sister branch
-    # Hence we guarantee that there is always BranchEnd effect, until all effects within a branch have been successfully
-    # interpreted. Only then a BranchStart meets its BranchEnd and get annilihated,
-    innereff = interpreted_continuation(eff.value.value)
-    if innereff.value isa BranchEnd
-      # if a start found an end, we drop both and just continue
-      innereff.cont(innereff.value.value)
-    else
-      # else we keep the BranchStart
-      flatmap(_ -> innereff, Eff(BranchStart()))
-    end
-
   else
     # if we don't know how to handle the current eff, we return it with the new continuation
     # this ensures the handler is applied recursively

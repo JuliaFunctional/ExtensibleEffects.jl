@@ -1,12 +1,11 @@
 module ExtensibleEffects
 export Eff, Continuation,
-  effect, noeffect,
+  effect, noeffect, NoEffect,
   runhandlers, @runhandlers,
   @insert_into_runhandlers,
-  autorun,
-  @syntax_eff, @syntax_eff_noautorun,
+  @syntax_eff, @syntax_eff_noautorun, noautorun,
   WriterHandler,
-  ContextManagerHandler, @runcontextmanager, @runcontextmanager_,
+  ContextManagerHandler, @runcontextmanager, @runcontextmanager_, ContextManagerCombinedHandler,
   CallableHandler, @runcallable,  # Callable handler
   StateHandler, @runstate
 

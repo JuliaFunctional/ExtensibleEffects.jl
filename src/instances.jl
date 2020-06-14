@@ -25,7 +25,12 @@ ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
 # --------
 # we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
 ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
-ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = a
+ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
+# Extra handling of Nothing and Const so that order of executing Nothing, Const, Identity handler does not matter
+# This is especially important for ExtensibleEffects.autorun, as here it might be "random" whether we first see
+# an Identity or a Nothing.
+ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
+
 # ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
 # # special support for interactions with Nothing, Const
 # ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
@@ -45,7 +50,26 @@ ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
 ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 # usually Const does not have a pure, however within Eff, it is totally fine,
 # as continuations on Const never get evaluated anyways
-ExtensibleEffects.eff_pure(::Type{Const}, a) = a
+ExtensibleEffects.eff_pure(::Type{<:Const}, a) = a
+
+# Option
+# ------
+ExtensibleEffects.eff_applies(handler::Type{<:Option}, value::Option) = true
+# eff_flatmap follows completely from Nothing and Identity
+ExtensibleEffects.eff_pure(::Type{<:Option}, a) = ExtensibleEffects.eff_pure(Identity, a)  # nothing would never reach this
+
+# Either
+# ------
+ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
+# eff_flatmap follows completely from Const and Identity
+ExtensibleEffects.eff_pure(::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Const would never reach this
+
+# OptionEither
+# ------
+ExtensibleEffects.eff_applies(handler::Type{<:OptionEither}, value::OptionEither) = true
+# eff_flatmap follows completely from Nothing, Const and Identity
+ExtensibleEffects.eff_pure(::Type{<:OptionEither}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Nothing/Const would never reach this
+
 
 # Iterable
 # --------
@@ -58,27 +82,6 @@ ExtensibleEffects.eff_applies(handler::Type{<:Vector}, value::Vector) = true
 # for Vector we need to overwrite `eff_normalize_handlertype`, as the default implementation would lead `Array`
 ExtensibleEffects.eff_autohandler(value::Vector) = Vector
 # eff_flatmap, eff_pure follow the generic implementation
-function ExtensibleEffects.eff_flatmap(continuation, a::Vector)
-  eff_of_a_of_a = flip_types(map(a) do x
-    @syntax_eff_noautorun begin
-      # we surround the continuation by start and end to ensure several branches do not interfere with oneanother
-      Eff(BranchStart())
-      y = continuation(x)
-      Eff(BranchEnd(y))
-    end
-  end)
-  eff_of_a = map(flatten, eff_of_a_of_a)
-  eff_of_a
-end
-
-# function ExtensibleEffects.eff_flatmap(continuation, a::Vector)
-#   eff_of_a_of_a = flip_types(map(x -> flatmap(y -> Eff(BranchEnd(y)), continuation(x)), a))
-#   eff_of_a = map(flatten, eff_of_a_of_a)
-#   # prepend BranchStart indicator
-#   flatmap(Eff(BranchStart())) do _
-#     eff_of_a
-#   end
-# end
 
 
 # Future/Task
@@ -114,10 +117,14 @@ ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_
 
 # ContextManager
 # --------------
-# the trivial definition for contextmanager does not work, as handling one effect does not mean that all effects
-# are already handled, and hence it is more like a lazy thing.
-# However for a context manager it does not make sense to first execute completely and then someone later the value is
-# used. Hence we need to wrap it into its own handler
+
+# The naive handler implementation for contextmanager would immediately run the continuation within the contextmanager.
+# However this does not work, as handling one effect does not mean that all "inner" effects are already handled.
+# Hence, such a handler would actually initialize and finalize the contextmanager, without its value being
+# processed already. When the other "inner" effects are run later on, they would find an already destroyed
+# contextmanager session.
+# We need to make sure, that the contextmanager is really the last Effect run. Therefore we create a custom
+# handler.
 struct ContextManagerHandler{F}
   cont::F
 end
@@ -125,8 +132,9 @@ ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextMana
 ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
 function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c::ContextManager)
   result = c(continuation)
-  # Core.println("continuation $(objectid(continuation)), result = $result.")
-  # TODO @assert result isa Eff{<:NoEffect} "ContextManager should be run after all other effects, however found result ``$(result)`` of type $(typeof(result))"
+  @assert(result.value isa NoEffect,
+    "ContextManager should be run after all other effects,"*
+    " however found result ``$(result)`` of type $(typeof(result))")
   result
 end
 
@@ -158,6 +166,94 @@ macro runcontextmanager_(expr)
   ))
 end
 
+
+
+# Combine ContextManager with Vector
+# ----------------------------------
+
+"""
+It happens that the plain contextmanager handler nests all found ContextManager, i.e. the first ContextManager will
+only be finalized if all other ContextManagers run, even if it is completely independent of them.
+For example consider
+```julia
+@runcontextmanager_ @syntax_eff begin
+  a = [1,2,3]
+  b = mycontextmanager(a)
+end
+```
+then the execution is
+```
+start mycontextmanager(1)
+start mycontextmanager(2)
+start mycontextmanager(3)
+finish mycontextmanager(3)
+finish mycontextmanager(2)
+finish mycontextmanager(1)
+```
+That is still semantically fine, however you may use ContextManager in order to save memory and really would like to
+have resources released as soon as possible. So you wish to have the following execution order
+```
+start mycontextmanager(1)
+finish mycontextmanager(1)
+start mycontextmanager(2)
+finish mycontextmanager(2)
+finish mycontextmanager(3)
+start mycontextmanager(3)
+```
+This is not easily possible by a mere ContextManager handler, because of several reasons. To give an intution, note
+two things:
+1. if you run a handler in ExtensibleEffects, it is automatically applied everywhere where possible
+2. if you run a continuation, it is run until it finds the next non-run Effect, or returns the final value.
+
+So if we just do `@runcontextmanager_` as above, it will try to evaluate the given continuation on the first
+contextmanager, where the continuation itself also already run the contextmanager. Hence there is no non-run Effect left
+in the continuation, and everything is run until the one final result. This results in the execution order seen above
+for `@runcontextmanager_`.
+
+To circumvent this we only have to combine the ContextManagerHandler with the Vector handler, as it is the Vector
+handler, which merges all different branches into the one single continuation which makes the problems above.
+If we just run both handlers at once, the continuation which is seen by the ContextManager is the continuation of the
+current branch, and hence is only run until the final value of the current branch.
+This corrects the execution order successfully.
+
+The only downside is that you cannot use autorun, but you have to default to using `@syntax_eff_noautorun` and then
+run your handlers manually.
+
+IMPORTANT: As this runs the ContextManager it is crucial that all other handlers are run beforehand.
+"""
+
+"""
+  ContextManagerCombinedHandler(otherhandler)
+
+We can combine ContextManager with any other Handler. This is possible because ContextManager, within eff_flatmap,
+does not constrain the returned eff of the continuation.
+"""
+struct ContextManagerCombinedHandler{OtherHandler, Func}
+  other_handler::OtherHandler
+  contextmanager_handler::ContextManagerHandler{Func}
+end
+function ContextManagerCombinedHandler(other_handler, func::Union{Type, Function} = identity)
+  ContextManagerCombinedHandler(other_handler, ContextManagerHandler(func))
+end
+
+function ExtensibleEffects.eff_applies(handler::ContextManagerCombinedHandler, value)
+  eff_applies(handler.other_handler, value) || eff_applies(handler.contextmanager_handler, value)
+end
+
+function ExtensibleEffects.eff_pure(handler::ContextManagerCombinedHandler, a)
+  b = ExtensibleEffects.eff_pure(handler.contextmanager_handler, a)
+  ExtensibleEffects.eff_pure(handler.other_handler, b)
+end
+function ExtensibleEffects.eff_flatmap(handler::ContextManagerCombinedHandler, continuation, a)
+  if eff_applies(handler.other_handler, a)
+    ExtensibleEffects.eff_flatmap(handler.other_handler, continuation, a)
+  elseif eff_applies(handler.contextmanager_handler, a)
+    ExtensibleEffects.eff_flatmap(handler.contextmanager_handler, continuation, a)
+  else
+    error("ContextManagerCombinedHandler should only be eff_flatmap on values which can either be handled "*
+    "by ContextManagerHandler or by other_handler = `$(handler.other_handler)`. However got value `$a`")
+  end
+end
 
 
 # Callable
@@ -201,6 +297,7 @@ struct StateHandler{T}
   state::T
 end
 ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state)
+
 # The updating of the state cannot be described by plain `eff_flatmap`.
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
 function runhandler(handler::StateHandler, eff::Eff)
