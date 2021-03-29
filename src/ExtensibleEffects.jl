@@ -7,7 +7,9 @@ export Eff, Continuation,
   WriterHandler,
   ContextManagerHandler, @runcontextmanager, @runcontextmanager_, ContextManagerCombinedHandler,
   CallableHandler, @runcallable,  # Callable handler
-  StateHandler, @runstate
+  StateHandler, @runstate,
+  # re-export:
+  @pure, Callable, Iterable
 
 include("core.jl")
 include("effecthandler.jl")
