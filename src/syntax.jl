@@ -18,14 +18,14 @@ using Monadic
 
     # syntax to interprete code and immediately run the specified effects such that the final type nesting corresponds
     # to the given order of effects
-    # e.g. ``(Vector, Option)`` will result into type `Vector{Option{...}}`
+    # e.g. `(Vector, Option)` will result into type `Vector{Option{...}}`
     handled = @syntax_eff begin
       a = [1,2,3]
       b = isodd(a) ? Option(a + 3) : Option()
       @pure a, b
-    end (Vector, Option)  # always expecting tuple, i.e. if it would only be Vector, the syntax expects ``(Vector,)``
+    end (Vector, Option)  # always expecting tuple, i.e. if it would only be Vector, the syntax expects `(Vector,)`
 
-    # syntax to interprete code and immediately run effects using ``ExtensibleEffects.autorun``
+    # syntax to interprete code and immediately run effects using `ExtensibleEffects.autorun`
     # the order of effects is taken from the code, the first encountered effecttype being the most outer container
     # i.e. the below will result in a type Vector{Option{...}}
     handled = @syntax_eff begin

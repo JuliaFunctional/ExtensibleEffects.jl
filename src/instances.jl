@@ -134,7 +134,7 @@ function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c:
   result = c(continuation)
   @assert(result.value isa NoEffect,
     "ContextManager should be run after all other effects,"*
-    " however found result ``$(result)`` of type $(typeof(result))")
+    " however found result `$(result)` of type $(typeof(result))")
   result
 end
 

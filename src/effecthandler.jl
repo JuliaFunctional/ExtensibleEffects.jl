@@ -13,7 +13,7 @@ function _runhandlers(all_handlers::Tuple, eff::Eff)
   runhandler(first(all_handlers), subresult)
 end
 
-runhandlers(any, not_eff) = error("can only apply runhandlers onto an `Eff`, got a ``$(typeof(not_eff))`")
+runhandlers(any, not_eff) = error("can only apply runhandlers onto an `Eff`, got a `$(typeof(not_eff))`")
 
 """
 extract final value from Eff with all effects (but Identity) already run
@@ -25,7 +25,7 @@ function runlast(final::Eff)
 end
 
 """
-like ``ExtensibleEffects.runlast``, however if the Eff is not yet completely handled, it just returns it.
+like `ExtensibleEffects.runlast`, however if the Eff is not yet completely handled, it just returns it.
 """
 function runlast_ifpossible(final::Eff)
   if isempty(final.cont) && final.value isa NoEffect
@@ -86,7 +86,7 @@ end
     ExtensibleEffects.eff_flatmap(interpreted_continuation, value)
 
 Overwrite this for your custom effect handler to handle your effect.
-This function is only called if ``eff_applies(handler, value)==true``.
+This function is only called if `eff_applies(handler, value)==true`.
 
 While for custom effects it is handy to dispatch on the handler itself, in simple cases
 `handler == typeof(value)` and hence, we allow to ommit it.
@@ -94,11 +94,11 @@ While for custom effects it is handy to dispatch on the handler itself, in simpl
 Parameters
 ----------
 The arg `interpreted_continuation` is guaranteed to return an Eff of the handled type.
-E.g. if you might handle the type ``Vector``, you are guaranteed that `interpreted_continuation(x)::Eff{Vector}`
+E.g. if you might handle the type `Vector`, you are guaranteed that `interpreted_continuation(x)::Eff{Vector}`
 
 Return
 ------
-If you do not return an ``Eff``, the result will be wrapped into `noeffect` automatically,
+If you do not return an `Eff`, the result will be wrapped into `noeffect` automatically,
 i.e. assuming the effect is handled afterwards.
 """
 eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_continuation, value)
@@ -128,7 +128,7 @@ function eff_pure end
     ExtensibleEffects.eff_applies(handler::YourHandlerType, value::ToBeHandledEffectType) = true
 
 Overwrite this function like above to indicate that a concrete effect is handled by a handler.
-In most cases you will have ``YourHandlerType = Type{ToBeHandledEffectType}``, like for ``Vector`` or similar.
+In most cases you will have `YourHandlerType = Type{ToBeHandledEffectType}`, like for `Vector` or similar.
 
 Sometimes you need extra information without which you cannot run a specific effect. Then you need to link
 the specific handler containing the required information. E.g. `Callable` needs `args` and `kwargs` to be run,

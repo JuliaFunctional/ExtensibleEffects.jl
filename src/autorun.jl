@@ -70,6 +70,6 @@ end
     eff_autohandler(value) = typeof(value).name.wrapper
 
 Overwrite this if the default autohandler extraction does not work for your case.
-E.g. for ``value::Vector`` the default would return `Array`, hence we need to overwrite it individually.
+E.g. for `value::Vector` the default would return `Array`, hence we need to overwrite it individually.
 """
 eff_autohandler(value) = typeof(value).name.wrapper
