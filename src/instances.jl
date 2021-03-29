@@ -36,14 +36,6 @@ ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
 # ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
 ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
 
-# Nothing
-# -------
-ExtensibleEffects.eff_applies(handler::Type{Nothing}, value::Nothing) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Nothing) = nothing
-# usually Nothing does not have a pure, however within Eff, it is totally fine,
-# as continuations on Nothing never get evaluated anyways
-ExtensibleEffects.eff_pure(::Type{Nothing}, a) = a
-
 # Const
 # -----
 ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
@@ -63,12 +55,6 @@ ExtensibleEffects.eff_pure(::Type{<:Option}, a) = ExtensibleEffects.eff_pure(Ide
 ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
 # eff_flatmap follows completely from Const and Identity
 ExtensibleEffects.eff_pure(::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Const would never reach this
-
-# OptionEither
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:OptionEither}, value::OptionEither) = true
-# eff_flatmap follows completely from Nothing, Const and Identity
-ExtensibleEffects.eff_pure(::Type{<:OptionEither}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Nothing/Const would never reach this
 
 
 # Iterable
@@ -333,13 +319,14 @@ macro runstate(expr)
   # Note, that we have to use `runhandlers` explicitly, such that other outer handlers using `@insert_into_runhandlers`
   # can interact well with this outer handler.
   esc(quote
-    eff = $expr
-    isa(eff, Eff) || error("""
-      `@runstate` only works for `Eff` type, got `$(typeof(eff))`.
-      Try to use `@runstate` as you first outer handler, which is directly applied to the `Eff`.
-      """)
-    ExtensibleEffects.State() do state
-      ExtensibleEffects.runhandlers(ExtensibleEffects.StateHandler(state), eff)
+    let eff = $expr
+      isa(eff, Eff) || error("""
+        `@runstate` only works for `Eff` type, got `$(typeof(eff))`.
+        Try to use `@runstate` as you first outer handler, which is directly applied to the `Eff`.
+        """)
+      ExtensibleEffects.State() do state
+        ExtensibleEffects.runhandlers(ExtensibleEffects.StateHandler(state), eff)
+      end
     end
   end)
 end
