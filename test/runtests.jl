@@ -8,7 +8,7 @@ import ExtensibleEffects: autorun
 
 
 @testset "Identity/Nothing/Const" begin
-  include("OptionEither.jl")
+  include("OptionTryEither.jl")
 end
 
 @testset "Vector/Iterable" begin

@@ -35,7 +35,7 @@ end
 
 vector, state = callable_state_eff(1)(3)
 @test state == 6561
-@test vector == [nothing, nothing, Identity((4, 85, 100, 186))]
+@test vector == [Const(nothing), Const(nothing), Identity((4, 85, 100, 186))]
 
 # CAUTION: the other way around it does not interact well, actually we implemented to throw an error
 @test_throws ErrorException @runstate @runcallable @syntax_eff begin

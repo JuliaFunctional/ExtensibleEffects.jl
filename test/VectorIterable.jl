@@ -32,32 +32,32 @@ program4 = @syntax_eff_noautorun begin
   [b, a+b]
 end
 
-r4_1 = runhandlers((Nothing, Identity, Vector), program4)
-r4_2 = runhandlers((Vector, Nothing, Identity), program4)
+r4_1 = runhandlers((Const, Identity, Vector), program4)
+r4_2 = runhandlers((Vector, Const, Identity), program4)
 
 @test r4_2 == program4 |>
   eff -> ExtensibleEffects.runhandler(Identity, eff) |>
-  eff -> ExtensibleEffects.runhandler(Nothing, eff) |>
+  eff -> ExtensibleEffects.runhandler(Const, eff) |>
   eff -> ExtensibleEffects.runhandler(Vector, eff) |>
   ExtensibleEffects.runlast
 
-@test r4_1 == nothing
-@test r4_2 == [nothing, Identity(42), Identity(44), nothing]
-@test autorun(program4) == [nothing, Identity(42), Identity(44), nothing]
+@test r4_1 == Const(nothing)
+@test r4_2 == [Const(nothing), Identity(42), Identity(44), Const(nothing)]
+@test autorun(program4) == [Const(nothing), Identity(42), Identity(44), Const(nothing)]
 
 
 # test syntax
 wrapper(i::Int) = collect(1:i)
 wrapper(any) = any
 
-r5_1 = @runhandlers (Vector, Nothing, Identity) @syntax_eff_noautorun wrapper begin
+r5_1 = @runhandlers (Vector, Const, Identity) @syntax_eff_noautorun wrapper begin
   a = 3
   b = iftrue(a % 2 == 0) do
     42
   end
   [b, a+b]
 end
-@test r5_1 == [nothing, Identity(42), Identity(44), nothing]
+@test r5_1 == [Const(nothing), Identity(42), Identity(44), Const(nothing)]
 
 r5_2 = @syntax_eff_noautorun wrapper begin
   a = 3
@@ -66,9 +66,9 @@ r5_2 = @syntax_eff_noautorun wrapper begin
   end
   [b, a+b]
 end
-@test runhandlers((Vector, Nothing, Identity), r5_2) ==  [nothing, Identity(42), Identity(44), nothing]
+@test runhandlers((Vector, Const, Identity), r5_2) ==  [Const(nothing), Identity(42), Identity(44), Const(nothing)]
 
-r5_3 = @runhandlers (Vector, Nothing, Identity) @syntax_eff_noautorun begin
+r5_3 = @runhandlers (Vector, Const, Identity) @syntax_eff_noautorun begin
   a = Identity(4)
   b = iftrue(a % 2 == 0) do
     42
@@ -78,11 +78,11 @@ end
 @test r5_3 == [Identity(42), Identity(46)]
 
 
-r5_4 = @runhandlers (Nothing, Identity, Vector) @syntax_eff_noautorun begin
+r5_4 = @runhandlers (Const, Identity, Vector) @syntax_eff_noautorun begin
   a = [1,2,3]
   b = iftrue(a % 2 == 0) do
     42
   end
   [b, a+b]
 end
-@test r5_4 == nothing
+@test r5_4 == Const(nothing)

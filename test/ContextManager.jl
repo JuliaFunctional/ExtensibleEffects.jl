@@ -98,7 +98,7 @@ end
 
 
 
-load_test1() = @runhandlers (ContextManagerCombinedHandler(Vector), Identity, Nothing) @syntax_eff_noautorun begin
+load_test1() = @runhandlers (ContextManagerCombinedHandler(Vector), Identity, Const) @syntax_eff_noautorun begin
   a = [1, 4, 7]
   b = load(a+1, "first ")
   @pure "hi there"
@@ -109,7 +109,7 @@ load_test1() = @runhandlers (ContextManagerCombinedHandler(Vector), Identity, No
   @pure a, b, c, d
 end
 
-@test @suppress_out load_test1() == [Identity((1,2,3,4)), nothing, Identity((7, 8, 15, 16))]
+@test @suppress_out load_test1() == [Identity((1,2,3,4)), Const(nothing), Identity((7, 8, 15, 16))]
 @test splitln(@capture_out load_test1()) == [
   "first before 2"
   "second before 4"
@@ -134,7 +134,7 @@ load_test2() = @runcontextmanager_ @syntax_eff begin
   @pure a, b, c, d
 end
 
-@test @suppress_out load_test2() == [Identity((1,2,3,4)), nothing, Identity((7, 8, 15, 16))]
+@test @suppress_out load_test2() == [Identity((1,2,3,4)), Const(nothing), Identity((7, 8, 15, 16))]
 @test splitln(@capture_out load_test2()) == [
   "first before 2"
   "second before 4"
@@ -158,7 +158,7 @@ load_test3() = @runhandlers ContextManagerCombinedHandler(Vector) @syntax_eff no
   d = load(c+1, "second ")
   @pure a, b, c, d
 end
-@test @suppress_out load_test3() == [Identity((1,2,3,4)), nothing, Identity((7, 8, 15, 16))]
+@test @suppress_out load_test3() == [Identity((1,2,3,4)), Const(nothing), Identity((7, 8, 15, 16))]
 @test splitln(@capture_out load_test3()) == [
   "first before 2"
   "second before 4"
