@@ -1,7 +1,7 @@
 name = "ExtensibleEffects"
 uuid = "67377c25-f533-4d0b-9328-1721380cc1f1"
-authors = ["s.sahm "]
-version = "0.1.0"
+authors = ["Stephan Sahm <stephan.sahm@gmx.de> and contributors"]
+version = "0.1.1"
 
 [deps]
 DataTypesBasic = "83eed652-29e8-11e9-12da-a7c29d64ffc9"
