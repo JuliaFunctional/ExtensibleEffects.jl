@@ -10,6 +10,9 @@ ExprParsers = "c5caad1f-83bd-4ce8-ac8e-4b29921e994e"
 Monadic = "4a6f0533-cc52-4fcf-a409-c6c05775ac80"
 TypeClasses = "addcc920-e0cf-11e8-30b7-0fb08706b574"
 
+[compat]
+ExprParsers = "1.0"
+
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
