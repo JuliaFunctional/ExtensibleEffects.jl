@@ -16,6 +16,8 @@ end
 runhandlers(any, not_eff) = error("can only apply runhandlers onto an `Eff`, got a `$(typeof(not_eff))`")
 
 """
+    runlast(eff::Eff)
+
 extract final value from Eff with all effects (but Identity) already run
 """
 function runlast(final::Eff)
@@ -25,6 +27,8 @@ function runlast(final::Eff)
 end
 
 """
+    runlast_ifpossible(eff::Eff)
+
 like `ExtensibleEffects.runlast`, however if the Eff is not yet completely handled, it just returns it.
 """
 function runlast_ifpossible(final::Eff)
@@ -62,6 +66,27 @@ function runhandler(handler, eff::Eff)
 end
 
 
+"""
+    @runhandlers handlers eff
+
+For convenience we provide `runhandlers` function also as a macro.
+
+With this you can easier run left-over handlers from an `@syntax_eff` autorun.
+
+Example
+-------
+```
+@runhandlers WithCall(args, kwargs) @syntax_eff begin
+  a = Callable(x -> 2x)
+  @pure a
+end
+```
+"""
+macro runhandlers(handlers, eff)
+  esc(:(ExtensibleEffects.runhandlers($handlers, $eff)))
+end
+
+
 
 # effecthandler interface
 # =======================
@@ -74,11 +99,9 @@ end
 # -----------
 
 function _eff_flatmap(handler, interpreted_continuation::Continuation, value)
-  # Core.println("ENTER handler = $handler, objectid(value) = $(objectid(value)), value = $value")
   # provide convenience wrapper if someone forgets to return an Eff
   result = eff_flatmap(handler, interpreted_continuation, value)
-  # Core.println("EXIT  handler = $handler, objectid(value) = $(objectid(value)), value = $value")
-  isa(result, Eff) ? result : noeffect(result)
+  noeffect(result)
 end
 
 """
@@ -94,11 +117,11 @@ While for custom effects it is handy to dispatch on the handler itself, in simpl
 Parameters
 ----------
 The arg `interpreted_continuation` is guaranteed to return an Eff of the handled type.
-E.g. if you might handle the type `Vector`, you are guaranteed that `interpreted_continuation(x)::Eff{Vector}`
+E.g. if you might handle the type `Vector`, you are guaranteed that `interpreted_continuation(x)::ExtensibleEffects.Eff{Vector}`
 
 Return
 ------
-If you do not return an `Eff`, the result will be wrapped into `noeffect` automatically,
+If you do not return an `ExtensibleEffects.Eff`, the result will be wrapped into `noeffect` automatically,
 i.e. assuming the effect is handled afterwards.
 """
 eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_continuation, value)
@@ -109,13 +132,13 @@ eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_
 
 function _eff_pure(handler, value)
   result = eff_pure(handler, value)
-  isa(result, Eff) ? result : noeffect(result)
+  noeffect(result)
 end
 
 """
     ExtensibleEffects.eff_pure(handler, value)
 
-Overwrite this for your custom effect handler, return either EffType or a plain value.
+Overwrite this for your custom effect handler, return either `ExtensibleEffects.Eff` type, or a plain value.
 Plain values will be wrapped with `noeffect` automatically.
 """
 function eff_pure end

@@ -2,7 +2,6 @@ using Test
 using ExtensibleEffects
 using DataTypesBasic
 using TypeClasses
-using Suppressor
 splitln(str) = split(strip(str), "\n")
 import ExtensibleEffects: autorun
 

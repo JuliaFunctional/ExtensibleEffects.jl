@@ -1,6 +1,3 @@
-using TypeClasses
-using DataTypesBasic
-
 """
 special Wrapper, which is completely peeled of again
 
@@ -19,7 +16,7 @@ struct Continuation{Fs}
 end
 
 """
-central data structure which can capture Effects in way that they can interact, while each
+central data structure which can capture Effects in a way that they can interact, while each
 is handled independently on its own
 """
 struct Eff{Effectful, Fs}
@@ -51,12 +48,13 @@ end
 mark a value as no effect, but plain value
 """
 noeffect(value) = Eff(NoEffect(value))  # everything reduces to the Identity Monad
+noeffect(eff::Eff) = eff  # if we find a Eff effect, we just directly use it (in analogy to `effect`)
 
 """
 mark a value as an effect
 """
 effect(value) = Eff(value)
-effect(eff::Eff) = eff # if we find a Eff effect, we just directly use it
+effect(eff::Eff) = eff  # if we find a Eff effect, we just directly use it
 
 
 # Functionalities for Continuation
