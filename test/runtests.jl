@@ -14,7 +14,7 @@ if  v"1.6" <= VERSION < v"1.7"
   doctest(ExtensibleEffects)
 end
 
-@testset "Identity/Nothing/Const" begin
+@testset "Identity/Const" begin
   include("OptionTryEither.jl")
 end
 
