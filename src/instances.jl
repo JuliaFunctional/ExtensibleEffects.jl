@@ -99,6 +99,7 @@ Handler for generic Writers. The default accumulator works with Option values.
 struct WriterHandler{Acc}
   pure_acc::Acc
 end
+WriterHandler() = WriterHandler(Option())  # same default pure-accumulator which is also used in TypeClasses
 ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, value::Writer{Acc}) where Acc = true
 ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)
 # autohandler and eff_flatmap are the same
