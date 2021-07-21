@@ -28,23 +28,20 @@ ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
 # we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
 ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
 ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
-# Extra handling of Nothing and Const so that order of executing Nothing, Const, Identity handler does not matter
+# Extra handling of Const so that order of executing Const or Identity handler does not matter
 # This is especially important for ExtensibleEffects.autorun, as here it might be "random" whether we first see
-# an Identity or a Nothing.
-ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
-
-# ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
-# # special support for interactions with Nothing, Const
-# ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
+# an Identity or a Const
+ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Const) = a
 ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
 
 # Const
 # -----
 ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 # usually Const does not have a pure, however within Eff, it is totally fine,
-# as continuations on Const never get evaluated anyways
+# as continuations on Const never get evaluated anyways, 
+# (and eff_pure is only called at the very end, when literal values are reached)
 ExtensibleEffects.eff_pure(::Type{<:Const}, a) = a
+ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 
 # Option
 # ------
