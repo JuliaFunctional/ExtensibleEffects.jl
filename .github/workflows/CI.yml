@@ -11,7 +11,7 @@ jobs:
       matrix:
         version:
           - '1.6'
-          - 'nightly'
+          # - 'nightly'  # nightly segfaults at the moment, hence disabling it for now
         os:
           - ubuntu-latest
         arch:
