@@ -11,8 +11,10 @@ ExtensibleEffects.eff_pure(T, a) = TypeClasses.pure(T, a)
 
 # standard eff_flatmap - fallback to map, flip_types, and flatten
 function ExtensibleEffects.eff_flatmap(continuation, a)
-  eff_of_a_of_a = flip_types(map(continuation, a))
-  map(flatten, eff_of_a_of_a)
+  a_of_eff_of_a = map(continuation, a)
+  eff_of_a_of_a = flip_types(a_of_eff_of_a)
+  eff_of_a = map(flatten, eff_of_a_of_a)
+  eff_of_a
 end
 
 # NoEffect
@@ -93,6 +95,11 @@ function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
   end
 end
 
+"""
+    WriteHandler(pure_accumulator=Option())
+
+Handler for generic Writers. The default accumulator works with Option values.
+"""
 struct WriterHandler{Acc}
   pure_acc::Acc
 end
@@ -104,13 +111,19 @@ ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_
 # ContextManager
 # --------------
 
-# The naive handler implementation for contextmanager would immediately run the continuation within the contextmanager.
-# However this does not work, as handling one effect does not mean that all "inner" effects are already handled.
-# Hence, such a handler would actually initialize and finalize the contextmanager, without its value being
-# processed already. When the other "inner" effects are run later on, they would find an already destroyed
-# contextmanager session.
-# We need to make sure, that the contextmanager is really the last Effect run. Therefore we create a custom
-# handler.
+"""
+    ContextManagerHandler(continuation)
+
+Handler for `DataTypesBasic.ContextManager`.
+
+The naive handler implementation for contextmanager would immediately run the continuation within the contextmanager.
+However this does not work, as handling one effect does not mean that all "inner" effects are already handled.
+Hence, such a handler would actually initialize and finalize the contextmanager, without its value being
+processed already. When the other "inner" effects are run later on, they would find an already destroyed
+contextmanager session.
+We need to make sure, that the contextmanager is really the last Effect run. Therefore we create a custom
+handler.
+"""
 struct ContextManagerHandler{F}
   cont::F
 end
@@ -245,6 +258,11 @@ end
 # Callable
 # --------
 
+"""
+    CallableHandler(args...; kwargs...)
+
+Handler for functions, providing the arguments and keyword arguments for calling the functions.
+"""
 struct CallableHandler{Args, Kwargs}
   args::Args
   kwargs::Kwargs
@@ -279,6 +297,11 @@ end
 # State
 # -----
 
+"""
+    StateHandler(state)
+
+Handler for running State. Gives the initial state.
+"""
 struct StateHandler{T}
   state::T
 end
