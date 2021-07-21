@@ -48,7 +48,7 @@ ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 # with this you can use Option/Try/Either as explicit handlers within `@runhandlers` calls
 ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
 # eff_flatmap follows completely from Const and Identity
-ExtensibleEffects.eff_pure(handler::Type{<:Either}, a) = a  # The same as Identity and Const
+ExtensibleEffects.eff_pure(handler::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Const would never reach this
 
 
 # Iterable
