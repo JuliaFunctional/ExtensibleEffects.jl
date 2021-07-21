@@ -340,7 +340,7 @@ macro runstate(expr)
   # can interact well with this outer handler.
   esc(quote
     let eff = $expr
-      isa(eff, Eff) || error("""
+      isa(eff, ExtensibleEffects.Eff) || error("""
         `@runstate` only works for `Eff` type, got `$(typeof(eff))`.
         Try to use `@runstate` as you first outer handler, which is directly applied to the `Eff`.
         """)
