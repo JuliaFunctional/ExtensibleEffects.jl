@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2021-07-21
+### Added
+* WriterHandler has now a default accumulator, `Option()`.
+* reexporting all DataTypes (from DataTypesBasic.jl and TypeClasses.jl)
+* support for `Vector` is now generalized to `AbstractVector`
+* added support for `AbstractDictionary` from the `Dictionaries` package 
+
+### Changed
+* `noeffect` when given an `Eff`, now passes it through unwrapped, just like `effect`.
+
+### Removed
+* `Eff` and `Continuation` are no longer exported, they are now considered internal details.
+
 ## [0.1.1] - 2021-03-30
 ### Added
 * CI/CD pipeline

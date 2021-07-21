@@ -11,8 +11,10 @@ ExtensibleEffects.eff_pure(T, a) = TypeClasses.pure(T, a)
 
 # standard eff_flatmap - fallback to map, flip_types, and flatten
 function ExtensibleEffects.eff_flatmap(continuation, a)
-  eff_of_a_of_a = flip_types(map(continuation, a))
-  map(flatten, eff_of_a_of_a)
+  a_of_eff_of_a = map(continuation, a)
+  eff_of_a_of_a = flip_types(a_of_eff_of_a)
+  eff_of_a = map(flatten, eff_of_a_of_a)
+  eff_of_a
 end
 
 # NoEffect
@@ -26,23 +28,20 @@ ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
 # we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
 ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
 ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
-# Extra handling of Nothing and Const so that order of executing Nothing, Const, Identity handler does not matter
+# Extra handling of Const so that order of executing Const or Identity handler does not matter
 # This is especially important for ExtensibleEffects.autorun, as here it might be "random" whether we first see
-# an Identity or a Nothing.
-ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
-
-# ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
-# # special support for interactions with Nothing, Const
-# ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Union{Nothing, Const}) = a
+# an Identity or a Const
+ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Const) = a
 ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
 
 # Const
 # -----
 ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
-ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 # usually Const does not have a pure, however within Eff, it is totally fine,
-# as continuations on Const never get evaluated anyways
+# as continuations on Const never get evaluated anyways, 
+# (and eff_pure is only called at the very end, when literal values are reached)
 ExtensibleEffects.eff_pure(::Type{<:Const}, a) = a
+ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
 
 # Option
 # ------
@@ -62,11 +61,10 @@ ExtensibleEffects.eff_pure(::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Ide
 ExtensibleEffects.eff_applies(handler::Type{<:Iterable}, value::Iterable) = true
 # everything else follows from the generic implementations of eff_autohandler, eff_pure and eff_flatmap
 
-# Vector
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:Vector}, value::Vector) = true
-# for Vector we need to overwrite `eff_normalize_handlertype`, as the default implementation would lead `Array`
-ExtensibleEffects.eff_autohandler(value::Vector) = Vector
+
+# AbstractVector
+# --------------
+ExtensibleEffects.eff_applies(handler::Type{T}, value::T) where {T<:AbstractArray} = true
 # eff_flatmap, eff_pure follow the generic implementation
 
 
@@ -93,9 +91,15 @@ function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
   end
 end
 
+"""
+    WriteHandler(pure_accumulator=Option())
+
+Handler for generic Writers. The default accumulator works with Option values.
+"""
 struct WriterHandler{Acc}
   pure_acc::Acc
 end
+WriterHandler() = WriterHandler(Option())  # same default pure-accumulator which is also used in TypeClasses
 ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, value::Writer{Acc}) where Acc = true
 ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)
 # autohandler and eff_flatmap are the same
@@ -104,13 +108,19 @@ ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_
 # ContextManager
 # --------------
 
-# The naive handler implementation for contextmanager would immediately run the continuation within the contextmanager.
-# However this does not work, as handling one effect does not mean that all "inner" effects are already handled.
-# Hence, such a handler would actually initialize and finalize the contextmanager, without its value being
-# processed already. When the other "inner" effects are run later on, they would find an already destroyed
-# contextmanager session.
-# We need to make sure, that the contextmanager is really the last Effect run. Therefore we create a custom
-# handler.
+"""
+    ContextManagerHandler(continuation)
+
+Handler for `DataTypesBasic.ContextManager`.
+
+The naive handler implementation for contextmanager would immediately run the continuation within the contextmanager.
+However this does not work, as handling one effect does not mean that all "inner" effects are already handled.
+Hence, such a handler would actually initialize and finalize the contextmanager, without its value being
+processed already. When the other "inner" effects are run later on, they would find an already destroyed
+contextmanager session.
+We need to make sure, that the contextmanager is really the last Effect run. Therefore we create a custom
+handler.
+"""
 struct ContextManagerHandler{F}
   cont::F
 end
@@ -245,6 +255,11 @@ end
 # Callable
 # --------
 
+"""
+    CallableHandler(args...; kwargs...)
+
+Handler for functions, providing the arguments and keyword arguments for calling the functions.
+"""
 struct CallableHandler{Args, Kwargs}
   args::Args
   kwargs::Kwargs
@@ -279,6 +294,11 @@ end
 # State
 # -----
 
+"""
+    StateHandler(state)
+
+Handler for running State. Gives the initial state.
+"""
 struct StateHandler{T}
   state::T
 end
@@ -320,7 +340,7 @@ macro runstate(expr)
   # can interact well with this outer handler.
   esc(quote
     let eff = $expr
-      isa(eff, Eff) || error("""
+      isa(eff, ExtensibleEffects.Eff) || error("""
         `@runstate` only works for `Eff` type, got `$(typeof(eff))`.
         Try to use `@runstate` as you first outer handler, which is directly applied to the `Eff`.
         """)

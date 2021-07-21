@@ -22,10 +22,28 @@ noeffect
 Explicit use of handlers
 ```@docs
 runhandlers
-@runhandlers,
-@insert_into_runhandlers
+@runhandlers
 ```
 
+## Interface
+
+Core Interface
+```@docs
+eff_applies
+eff_pure
+eff_flatmap
+```
+
+Autorun optional extra
+```@docs
+eff_autohandler
+```
+
+helper for developing composable effect-handler-macros
+
+```@docs
+@insert_into_runhandlers
+```
 
 ## Effect Handlers
 
@@ -61,4 +79,17 @@ Core DataTypes
 Eff
 Continuation
 NoEffect
+```
+
+autorun
+```@docs
+autorun
+NoAutoRun
+```
+
+other
+```@docs
+runhandler
+runlast
+runlast_ifpossible
 ```
