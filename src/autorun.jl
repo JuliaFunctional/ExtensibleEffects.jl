@@ -67,9 +67,9 @@ function _autorun(handlers, eff::Eff)
 end
 
 """
-    eff_autohandler(value) = typeof(value).name.wrapper
+    eff_autohandler(value) = Base.typename(typeof(value)).wrapper
 
 Overwrite this if the default autohandler extraction does not work for your case.
 E.g. for `value::Vector` the default would return `Array`, hence we need to overwrite it individually.
 """
-eff_autohandler(value) = typeof(value).name.wrapper
+eff_autohandler(value) = Base.typename(typeof(value)).wrapper
