@@ -19,15 +19,15 @@ Use it like
 using ExtensibleEffects
 ```
 
-## eff_applies, eff_pure, eff_flatmap
+## `eff_applies`, `eff_pure`, `eff_flatmap`
 
 `Option`, `Vector`, `Iterable` and many more are handled by overwriting the three core functions. We specify them by using Vector as an example:
 
 core function | description
 ------------- | ------------
-`eff_applies(handler::Type{<:Vector}, value::Vector) = true` | specify on which values the handler applies (the handler Vector applies to Vector of course)
+`eff_applies(handler::Type{<:Vector}, effectful::Vector) = true` | specify on which values the handler applies (the handler Vector applies to Vector of course)
 `eff_pure(handler::Type{<:Vector}, value) = [value]` | wrap a plain value into the Monad of the handler, here Vector.
-`eff_flatmap(continuation, value::Vector)` | apply a continuation to the current effect (here again Vector as an example). The key difference to plain `TypeClasses.flatmap` is that `continuation` does not return a plain `Vector`, but a `Eff{Vector}`. Applying this `continuation` with a plain `map` would lead `Vector{Eff{Vector}}`. However, `eff_flatmap` needs to return an `Eff{Vector}` instead.
+`eff_flatmap(continuation, effectful::Vector)` | apply a continuation to the current effect (here again Vector as an example). The key difference to plain `TypeClasses.flatmap` is that `continuation` does not return a plain `Vector`, but a `Eff{Vector}`. Applying this `continuation` with a plain `map` would lead `Vector{Eff{Vector}}`. However, `eff_flatmap` needs to return an `Eff{Vector}` instead.
 
 TODO show at least the implementation of one example, say Option.
 
@@ -54,7 +54,7 @@ The most advanced possibility to define effects is showcased by `State`. It need
 ## Outer Handlers
 To evaluate a `Callable` we need `args` and `kwargs`, hence there is also a custom handler `CallableHandler(args...; kwargs...)` to run `Callable` effects. We can just run it using explicit `args`, `kwargs`, but we can also reconstruct a true Callable.
 
-TODO show how to reconstruct Callable manualle
+TODO show how to reconstruct Callable manually
 ```julia
 Callable(function (args...; kwargs...)
   runhandlers(CallableHandler(args...; kwargs...), eff)
