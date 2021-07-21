@@ -22,4 +22,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/JuliaFunctional/ExtensibleEffects.jl",
+    devbranch="main",
 )
