@@ -20,18 +20,18 @@ end
 # NoEffect
 # --------
 ExtensibleEffects.eff_applies(handler::Type{<:NoEffect}, value::NoEffect) = true
-ExtensibleEffects.eff_pure(::Type{<:NoEffect}, a) = a
+ExtensibleEffects.eff_pure(handler::Type{<:NoEffect}, a) = a
 ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
 
 # Identity
 # --------
 # we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
 ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
-ExtensibleEffects.eff_pure(::Type{<:Identity}, a) = Identity(a)
+ExtensibleEffects.eff_pure(handler::Type{<:Identity}, a) = Identity(a)
 # Extra handling of Const so that order of executing Const or Identity handler does not matter
 # This is especially important for ExtensibleEffects.autorun, as here it might be "random" whether we first see
 # an Identity or a Const
-ExtensibleEffects.eff_pure(::Type{<:Identity}, a::Const) = a
+ExtensibleEffects.eff_pure(handler::Type{<:Identity}, a::Const) = a
 ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
 
 # Const
@@ -40,20 +40,15 @@ ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
 # usually Const does not have a pure, however within Eff, it is totally fine,
 # as continuations on Const never get evaluated anyways, 
 # (and eff_pure is only called at the very end, when literal values are reached)
-ExtensibleEffects.eff_pure(::Type{<:Const}, a) = a
+ExtensibleEffects.eff_pure(handler::Type{<:Const}, a) = a
 ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
-
-# Option
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:Option}, value::Option) = true
-# eff_flatmap follows completely from Nothing and Identity
-ExtensibleEffects.eff_pure(::Type{<:Option}, a) = ExtensibleEffects.eff_pure(Identity, a)  # nothing would never reach this
 
 # Either
 # ------
+# with this you can use Option/Try/Either as explicit handlers within `@runhandlers` calls
 ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
 # eff_flatmap follows completely from Const and Identity
-ExtensibleEffects.eff_pure(::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Const would never reach this
+ExtensibleEffects.eff_pure(handler::Type{<:Either}, a) = a  # The same as Identity and Const
 
 
 # Iterable
@@ -74,7 +69,7 @@ ExtensibleEffects.eff_applies(handler::Type{<:Task}, value::Task) = true
 ExtensibleEffects.eff_applies(handler::Type{<:Future}, value::Future) = true
 # we directly interprete Task and Future
 # finally surround interpreted expression by `@async`/`@spawnnat :any` to get back the Task/Future context
-ExtensibleEffects.eff_pure(::Type{<:Union{Task, Future}}, a) = a
+ExtensibleEffects.eff_pure(handler::Type{<:Union{Task, Future}}, a) = a
 function ExtensibleEffects.eff_flatmap(continuation, a::Union{Task, Future})
   continuation(fetch(a))
 end
