@@ -61,11 +61,10 @@ ExtensibleEffects.eff_pure(::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Ide
 ExtensibleEffects.eff_applies(handler::Type{<:Iterable}, value::Iterable) = true
 # everything else follows from the generic implementations of eff_autohandler, eff_pure and eff_flatmap
 
-# Vector
-# ------
-ExtensibleEffects.eff_applies(handler::Type{<:Vector}, value::Vector) = true
-# for Vector we need to overwrite `eff_normalize_handlertype`, as the default implementation would lead `Array`
-ExtensibleEffects.eff_autohandler(value::Vector) = Vector
+
+# AbstractVector
+# --------------
+ExtensibleEffects.eff_applies(handler::Type{T}, value::T) where {T<:AbstractArray} = true
 # eff_flatmap, eff_pure follow the generic implementation
 
 
