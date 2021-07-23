@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2021-07-23
+### Changed
+* `WriterHandler` now uses `neutral` as the default accumulator, which is strictly more general than the previous `Option()`
+* `eff_pure` for `Writer` is now defaulting to `TypeClasses.pure`
+* `eff_autohandler` is no longer overwritten for `Writer`, defaulting to the generic `Writer` which is now possible as since TypeClasses 1.1.0, `pure(Writer, value)` is more generic.
+
 ## [1.0.0] - 2021-07-21
 ### Added
 * WriterHandler has now a default accumulator, `Option()`.

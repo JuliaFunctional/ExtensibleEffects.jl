@@ -74,11 +74,10 @@ function ExtensibleEffects.eff_flatmap(continuation, a::Union{Task, Future})
   continuation(fetch(a))
 end
 
+
 # Writer
 # ------
-# pure is only available for Acc with Neutral, hence the handler type needs to be Writer{Acc}
-ExtensibleEffects.eff_applies(handler::Type{<:Writer{Acc}}, value::Writer{Acc}) where Acc = true
-ExtensibleEffects.eff_autohandler(value::Writer{Acc}) where Acc = Writer{Acc}
+ExtensibleEffects.eff_applies(handler::Type{<:Writer}, value::Writer) = true
 function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
   eff_of_writer = continuation(a.value)
   map(eff_of_writer) do b
@@ -87,14 +86,14 @@ function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
 end
 
 """
-    WriteHandler(pure_accumulator=Option())
+    WriteHandler(pure_accumulator=neutral)
 
 Handler for generic Writers. The default accumulator works with Option values.
 """
 struct WriterHandler{Acc}
   pure_acc::Acc
 end
-WriterHandler() = WriterHandler(Option())  # same default pure-accumulator which is also used in TypeClasses
+WriterHandler() = WriterHandler(neutral)  # same default pure-accumulator which is also used in TypeClasses
 ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, value::Writer{Acc}) where Acc = true
 ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)
 # autohandler and eff_flatmap are the same
