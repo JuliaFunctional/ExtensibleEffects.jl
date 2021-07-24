@@ -164,7 +164,7 @@ ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextMana
 ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
 function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c::ContextManager)
   result = c(continuation)
-  @assert(result.value isa NoEffect,
+  @assert(result.effectful isa NoEffect,
     "ContextManager should be run after all other effects,"*
     " however found result `$(result)` of type $(typeof(result))")
   result
@@ -302,9 +302,8 @@ ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state
 
 # The updating of the state cannot be described by plain `eff_flatmap`.
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
-function runhandler(handler::StateHandler, eff::Eff)
-  if eff.value isa State  # eff_applies(handler, eff.value)
-    nextvalue, nextstate = eff.value(handler.state)
+  if eff.effectful isa State  # eff_applies(handler, eff.effectful)
+    nextvalue, nextstate = eff.effectful(handler.state)
     if isempty(eff.cont)
       _eff_pure(handler, nextvalue)
     else
@@ -318,7 +317,7 @@ function runhandler(handler::StateHandler, eff::Eff)
     else
       Continuation(x -> runhandler(handler, eff.cont(x)))
     end
-    Eff(eff.value, interpreted_continuation)
+    Eff(eff.effectful, interpreted_continuation)
   end
 end
 

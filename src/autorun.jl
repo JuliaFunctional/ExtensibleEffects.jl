@@ -34,10 +34,10 @@ inner container of the result value.
 """
 autorun(eff::Eff) = runlast_ifpossible(_autorun((), eff))
 function _autorun(handlers, eff::Eff)
-  # for autorun we only deal with simple handlers `handler = typeof(eff.value)` where `eff_applies(handler, eff.value)`
-  handler = eff_autohandler(eff.value)
+  # for autorun we only deal with simple handlers `handler = typeof(eff.effectful)` where `eff_applies(handler, eff.effectful)`
+  handler = eff_autohandler(eff.effectful)
 
-  if handler ∈ handlers || !eff_applies(handler, eff.value)
+  if handler ∈ handlers || !eff_applies(handler, eff.effectful)
     # If we encounter a handler which we already triggered, we don't want to trigger it again, however
     # we need to make sure that subsequent unseen handlers will be triggered correctly.
     # Hence, we build a continuation with calling `_autorun`.
@@ -50,7 +50,7 @@ function _autorun(handlers, eff::Eff)
       Continuation(x -> _autorun(handlers, eff.cont(x)))
     end
     # unwrap NoAutoRun if found
-    value = eff.value isa NoAutoRun ? eff.value.value : eff.value
+    value = eff.effectful isa NoAutoRun ? eff.effectful.value : eff.effectful
     Eff(value, interpreted_continuation)
   else
     # If this is a new valid handler, we trigger standard handler interpretation, with the one difference, that before
@@ -62,7 +62,7 @@ function _autorun(handlers, eff::Eff)
     else
       Continuation(x -> runhandler(handler, _autorun(handlers_new, eff.cont(x))))
     end
-    _eff_flatmap(handler, interpreted_continuation, eff.value)
+    _eff_flatmap(handler, interpreted_continuation, eff.effectful)
   end
 end
 

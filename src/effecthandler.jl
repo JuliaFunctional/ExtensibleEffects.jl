@@ -22,8 +22,8 @@ extract final value from Eff with all effects (but Identity) already run
 """
 function runlast(final::Eff)
   @assert isempty(final.cont) "expected eff without continuation, but found cont=$(final.cont)"
-  @assert final.value isa NoEffect "not all effects have been handled, found $(final.value)"
-  final.value.value
+  @assert final.effectful isa NoEffect "not all effects have been handled, found $(final.value)"
+  final.effectful.value
 end
 
 """
@@ -32,8 +32,8 @@ end
 like `ExtensibleEffects.runlast`, however if the Eff is not yet completely handled, it just returns it.
 """
 function runlast_ifpossible(final::Eff)
-  if isempty(final.cont) && final.value isa NoEffect
-    final.value.value
+  if isempty(final.cont) && final.effectful isa NoEffect
+    final.effectful.value
   else
     final
   end
@@ -56,12 +56,12 @@ function runhandler(handler, eff::Eff)
     Continuation(x -> runhandler(handler, eff.cont(x)))
   end
 
-  if eff_applies(handler, eff.value)
-    _eff_flatmap(handler, interpreted_continuation, eff.value)
+  if eff_applies(handler, eff.effectful)
+    _eff_flatmap(handler, interpreted_continuation, eff.effectful)
   else
     # if we don't know how to handle the current eff, we return it with the new continuation
     # this ensures the handler is applied recursively
-    Eff(eff.value, interpreted_continuation)
+    Eff(eff.effectful, interpreted_continuation)
   end
 end
 
