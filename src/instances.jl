@@ -156,7 +156,7 @@ handler.
 """
 struct ContextManagerHandler{F}
   cont::F
-# extra performance support for using Types as continuations.
+  # extra performance support for using Types as continuations.
   ContextManagerHandler(cont) = new{Core.Typeof(cont)}(cont)
 end
 
@@ -302,6 +302,7 @@ ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state
 
 # The updating of the state cannot be described by plain `eff_flatmap`.
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
+function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
   if eff.effectful isa State  # eff_applies(handler, eff.effectful)
     nextvalue, nextstate = eff.effectful(handler.state)
     if isempty(eff.cont)
