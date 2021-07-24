@@ -118,6 +118,9 @@ handler.
 struct ContextManagerHandler{F}
   cont::F
 end
+# extra performance support for using Types as continuations.
+ContextManagerHandler(cont) = ContextManagerHandler{Core.Typeof(cont)}(cont)
+
 ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextManager) = true
 ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
 function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c::ContextManager)
@@ -223,7 +226,7 @@ struct ContextManagerCombinedHandler{OtherHandler, Func}
   contextmanager_handler::ContextManagerHandler{Func}
 end
 function ContextManagerCombinedHandler(other_handler, func::Union{Type, Function} = identity)
-  ContextManagerCombinedHandler(other_handler, ContextManagerHandler(func))
+  ContextManagerCombinedHandler{Core.Typeof(other_handler), Core.Typeof(func)}(other_handler, ContextManagerHandler(func))
 end
 
 function ExtensibleEffects.eff_applies(handler::ContextManagerCombinedHandler, value)
