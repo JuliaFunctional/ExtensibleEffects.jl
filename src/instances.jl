@@ -156,9 +156,9 @@ handler.
 """
 struct ContextManagerHandler{F}
   cont::F
-end
 # extra performance support for using Types as continuations.
-ContextManagerHandler(cont) = ContextManagerHandler{Core.Typeof(cont)}(cont)
+  ContextManagerHandler(cont) = new{Core.Typeof(cont)}(cont)
+end
 
 ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextManager) = true
 ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
