@@ -99,6 +99,45 @@ ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_
 # autohandler and eff_flatmap are the same
 
 
+# Callable
+# --------
+
+"""
+    CallableHandler(args...; kwargs...)
+
+Handler for functions, providing the arguments and keyword arguments for calling the functions.
+"""
+struct CallableHandler{Args, Kwargs}
+  args::Args
+  kwargs::Kwargs
+  CallableHandler(args...; kwargs...) = new{typeof(args), typeof(kwargs)}(args, kwargs)
+end
+ExtensibleEffects.eff_applies(handler::CallableHandler, value::Callable) = true
+# we interpret callable by adding an extra Functor from the top outside, so that internally we can interpret each call
+# by just getting args and kwargs from the context
+ExtensibleEffects.eff_pure(handler::CallableHandler, a) = a
+function ExtensibleEffects.eff_flatmap(handler::CallableHandler, continuation, a::Callable)
+  continuation(a(handler.args...; handler.kwargs...))
+end
+
+"""
+    @runcallable(eff)
+
+translates to
+
+    Callable(function(args...; kwargs...)
+      @insert_into_runhandlers CallableHandler(args...; kwargs...) eff
+    end)
+
+Thanks to `@insert_into_runhandlers` this outer runner can compose well with other outer runners.
+"""
+macro runcallable(expr)
+  esc(:(ExtensibleEffects.TypeClasses.Callable(function(args...; kwargs...)
+    ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.CallableHandler(args...; kwargs...), $expr)
+  end)))
+end
+
+
 # ContextManager
 # --------------
 
@@ -158,7 +197,6 @@ macro runcontextmanager_(expr)
     ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.ContextManagerHandler(Base.identity), $expr)
   ))
 end
-
 
 
 # Combine ContextManager with Vector
@@ -246,45 +284,6 @@ function ExtensibleEffects.eff_flatmap(handler::ContextManagerCombinedHandler, c
     error("ContextManagerCombinedHandler should only be eff_flatmap on values which can either be handled "*
     "by ContextManagerHandler or by other_handler = `$(handler.other_handler)`. However got value `$a`")
   end
-end
-
-
-# Callable
-# --------
-
-"""
-    CallableHandler(args...; kwargs...)
-
-Handler for functions, providing the arguments and keyword arguments for calling the functions.
-"""
-struct CallableHandler{Args, Kwargs}
-  args::Args
-  kwargs::Kwargs
-  CallableHandler(args...; kwargs...) = new{typeof(args), typeof(kwargs)}(args, kwargs)
-end
-ExtensibleEffects.eff_applies(handler::CallableHandler, value::Callable) = true
-# we interpret callable by adding an extra Functor from the top outside, so that internally we can interpret each call
-# by just getting args and kwargs from the context
-ExtensibleEffects.eff_pure(handler::CallableHandler, a) = a
-function ExtensibleEffects.eff_flatmap(handler::CallableHandler, continuation, a::Callable)
-  continuation(a(handler.args...; handler.kwargs...))
-end
-
-"""
-    @runcallable(eff)
-
-translates to
-
-    Callable(function(args...; kwargs...)
-      @insert_into_runhandlers CallableHandler(args...; kwargs...) eff
-    end)
-
-Thanks to `@insert_into_runhandlers` this outer runner can compose well with other outer runners.
-"""
-macro runcallable(expr)
-  esc(:(ExtensibleEffects.TypeClasses.Callable(function(args...; kwargs...)
-    ExtensibleEffects.@insert_into_runhandlers(ExtensibleEffects.CallableHandler(args...; kwargs...), $expr)
-  end)))
 end
 
 
