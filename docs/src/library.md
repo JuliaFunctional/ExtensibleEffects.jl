@@ -34,13 +34,18 @@ eff_pure
 eff_flatmap
 ```
 
-Autorun optional extra
+optional extra for autorun (in 99% not needed)
 ```@docs
 eff_autohandler
 ```
 
-helper for developing composable effect-handler-macros
+for developing advanced effects like `State`
+```@docs
+runhandler
+runhandler_not_applies
+```
 
+for developing composable effect-handler-macros
 ```@docs
 @insert_into_runhandlers
 ```
