@@ -298,27 +298,20 @@ Handler for running State. Gives the initial state.
 struct StateHandler{T}
   state::T
 end
+ExtensibleEffects.eff_applies(handler::StateHandler, value::State) = true
 ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state)
 
 # The updating of the state cannot be described by plain `eff_flatmap`.
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
 function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
-  if eff.effectful isa State  # eff_applies(handler, eff.effectful)
-    nextvalue, nextstate = eff.effectful(handler.state)
-    if isempty(eff.cont)
-      _eff_pure(handler, nextvalue)
-    else
-      nexthandler = StateHandler(nextstate)
-      runhandler(nexthandler, eff.cont(nextvalue))
-    end
+  eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)  # 
+  
+  nextvalue, nextstate = eff.effectful(handler.state)
+  if isempty(eff.cont)
+    _eff_pure(handler, nextvalue)
   else
-    # standard procedure
-    interpreted_continuation = if isempty(eff.cont)
-      Continuation(x -> _eff_pure(handler, x))
-    else
-      Continuation(x -> runhandler(handler, eff.cont(x)))
-    end
-    Eff(eff.effectful, interpreted_continuation)
+    nexthandler = StateHandler(nextstate)
+    runhandler(nexthandler, eff.cont(nextvalue))
   end
 end
 

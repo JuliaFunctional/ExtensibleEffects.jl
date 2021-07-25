@@ -50,21 +50,33 @@ note that we represent effectrunners as plain types in order to associate
 standard effect runners with types like Vector, Option, ...
 """
 function runhandler(handler, eff::Eff)
+  eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
+
+  interpreted_continuation = if isempty(eff.cont)
+    # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff` 
+    # because there is the handler which may have extra information
+    Continuation(x -> _eff_pure(handler, x))
+  else
+    Continuation(x -> runhandler(handler, eff.cont(x)))
+  end
+  _eff_flatmap(handler, interpreted_continuation, eff.effectful)
+end
+
+"""
+    runhandler_not_applies(handler, eff)
+
+if your handler does not apply, use this as the fallback to handle the unknown effect. 
+"""
+function runhandler_not_applies(handler, eff::Eff)
   interpreted_continuation = if isempty(eff.cont)
     Continuation(x -> _eff_pure(handler, x))
   else
     Continuation(x -> runhandler(handler, eff.cont(x)))
   end
-
-  if eff_applies(handler, eff.effectful)
-    _eff_flatmap(handler, interpreted_continuation, eff.effectful)
-  else
-    # if we don't know how to handle the current eff, we return it with the new continuation
-    # this ensures the handler is applied recursively
-    Eff(eff.effectful, interpreted_continuation)
-  end
+  # if we don't know how to handle the current eff, we return it with the new continuation
+  # this ensures the handler is applied recursively
+  Eff(eff.effectful, interpreted_continuation)
 end
-
 
 """
     @runhandlers handlers eff
