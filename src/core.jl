@@ -78,12 +78,5 @@ Base.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
 # -----------------------
 
 TypeClasses.pure(::Type{<:Eff}, a) = noeffect(a)
-function Base.map(f, eff::Eff)
-  TypeClasses.flatmap(noeffect ∘ f, eff)
-end
-function TypeClasses.flatmap(f, eff::Eff)
-  Eff(eff.effectful, Continuation(eff.cont.functions..., f))
-end
-TypeClasses.flatten(eff::Eff) = TypeClasses.flatmap(identity, eff)
-# there is probably a more efficient version, but this should be fine for now
-TypeClasses.ap(ff::Eff, fa::Eff) = TypeClasses.default_ap_having_map_flatmap(ff, fa)
+TypeClasses.map(f, eff::Eff) = TypeClasses.flatmap(noeffect ∘ f, eff)
+TypeClasses.flatmap(f, eff::Eff) = Eff(eff.effectful, Continuation(eff.cont.functions..., f))
