@@ -304,13 +304,13 @@ ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state
 # The updating of the state cannot be described by plain `eff_flatmap`.
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
 function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
-  eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)  # 
+  eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
   
   nextvalue, nextstate = eff.effectful(handler.state)
+  nexthandler = StateHandler(nextstate)
   if isempty(eff.cont)
-    _eff_pure(handler, nextvalue)
+    _eff_pure(nexthandler, nextvalue)
   else
-    nexthandler = StateHandler(nextstate)
     runhandler(nexthandler, eff.cont(nextvalue))
   end
 end
