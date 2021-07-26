@@ -40,7 +40,7 @@ end
 Eff(effectful) = Eff(effectful, Continuation())
 
 function Base.show(io::IO, eff::Eff)
-  print(io, "Eff(value=$(eff.effectful), length(cont)=$(length(eff.cont.functions)))")
+  print(io, "Eff(effectful=$(eff.effectful), length(cont)=$(length(eff.cont.functions)))")
 end
 
 
