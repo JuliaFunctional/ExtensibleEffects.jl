@@ -15,7 +15,12 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
-        "Manual" => "manual.md",
+        "Manual" => [
+            "Introduction" => "manual-introduction.md",
+            "Effects" => "manual-effects.md",
+            "How it works" => "manual-how-it-works.md",
+            "JuliaCon 2021" => "manual-juliacon.md",
+        ],
         "Library" => "library.md",
     ],
 )

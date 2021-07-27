@@ -92,9 +92,8 @@ autorun
 NoAutoRun
 ```
 
-other
+runlast
 ```@docs
-runhandler
 runlast
 runlast_ifpossible
 ```
