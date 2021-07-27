@@ -3,7 +3,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaFunctional.github.io/ExtensibleEffects.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaFunctional.github.io/ExtensibleEffects.jl/dev)
 [![Build Status](https://github.com/JuliaFunctional/ExtensibleEffects.jl/workflows/CI/badge.svg)](https://github.com/JuliaFunctional/ExtensibleEffects.jl/actions)
-![Codecov](https://img.shields.io/codecov/c/github/JuliaFunctional/ExtensibleEffects.jl)
+[![Coverage](https://img.shields.io/codecov/c/github/JuliaFunctional/ExtensibleEffects.jl)](https://codecov.io/gh/JuliaFunctional/ExtensibleEffects.jl)
 
 This package provides an implementation of Extensible Effects. We follow the approach presented in the paper [Freer Monads, More Extensible Effects](http://okmij.org/ftp/Haskell/extensible/more.pdf) which already has an [Haskell implementation](https://hackage.haskell.org/package/freer-effects) as well as a [Scala implementation](https://github.com/atnos-org/eff).
 
