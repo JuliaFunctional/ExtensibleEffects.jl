@@ -94,9 +94,9 @@ struct WriterHandler{Acc}
   pure_acc::Acc
 end
 WriterHandler() = WriterHandler(neutral)  # same default pure-accumulator which is also used in TypeClasses
-ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, effectful::Writer{Acc}) where Acc = true
+ExtensibleEffects.eff_applies(handler::WriterHandler, effectful::Writer) = true
 ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)
-# autohandler and eff_flatmap are the same
+# eff_flatmap is the same
 
 
 # Callable
