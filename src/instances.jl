@@ -7,7 +7,7 @@ using Distributed
 # -----------------------
 
 # standard pure - fallback to TypeClass.pure
-ExtensibleEffects.eff_pure(T, a) = TypeClasses.pure(T, a)
+ExtensibleEffects.eff_pure(T, value) = TypeClasses.pure(T, value)
 
 # standard eff_flatmap - fallback to map, flip_types, and flatten
 function ExtensibleEffects.eff_flatmap(continuation, a)
@@ -19,65 +19,65 @@ end
 
 # NoEffect
 # --------
-ExtensibleEffects.eff_applies(handler::Type{<:NoEffect}, value::NoEffect) = true
-ExtensibleEffects.eff_pure(handler::Type{<:NoEffect}, a) = a
-ExtensibleEffects.eff_flatmap(continuation, a::NoEffect) = continuation(a.value)
+ExtensibleEffects.eff_applies(handler::Type{<:NoEffect}, effectful::NoEffect) = true
+ExtensibleEffects.eff_pure(handler::Type{<:NoEffect}, value) = value
+ExtensibleEffects.eff_flatmap(continuation, effectful::NoEffect) = continuation(effectful.value)
 
 # Identity
 # --------
 # we choose to Identity{T} instead of plain T to be in accordance with behaviour of syntax_flatmap
-ExtensibleEffects.eff_applies(handler::Type{<:Identity}, value::Identity) = true
-ExtensibleEffects.eff_pure(handler::Type{<:Identity}, a) = Identity(a)
+ExtensibleEffects.eff_applies(handler::Type{<:Identity}, effectful::Identity) = true
+ExtensibleEffects.eff_pure(handler::Type{<:Identity}, value) = Identity(value)
 # Extra handling of Const so that order of executing Const or Identity handler does not matter
 # This is especially important for ExtensibleEffects.autorun, as here it might be "random" whether we first see
 # an Identity or a Const
-ExtensibleEffects.eff_pure(handler::Type{<:Identity}, a::Const) = a
-ExtensibleEffects.eff_flatmap(continuation, a::Identity) = continuation(a.value)
+ExtensibleEffects.eff_pure(handler::Type{<:Identity}, value::Const) = value
+ExtensibleEffects.eff_flatmap(continuation, effectful::Identity) = continuation(effectful.value)
 
 # Const
 # -----
-ExtensibleEffects.eff_applies(handler::Type{<:Const}, value::Const) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Const}, effectful::Const) = true
 # usually Const does not have a pure, however within Eff, it is totally fine,
 # as continuations on Const never get evaluated anyways, 
 # (and eff_pure is only called at the very end, when literal values are reached)
-ExtensibleEffects.eff_pure(handler::Type{<:Const}, a) = a
-ExtensibleEffects.eff_flatmap(continuation, a::Const) = a
+ExtensibleEffects.eff_pure(handler::Type{<:Const}, value) = value
+ExtensibleEffects.eff_flatmap(continuation, effectful::Const) = effectful
 
 # Either
 # ------
 # with this you can use Option/Try/Either as explicit handlers within `@runhandlers` calls
-ExtensibleEffects.eff_applies(handler::Type{<:Either}, value::Either) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Either}, effectful::Either) = true
 # eff_flatmap follows completely from Const and Identity
-ExtensibleEffects.eff_pure(handler::Type{<:Either}, a) = ExtensibleEffects.eff_pure(Identity, a)  # Const would never reach this
+ExtensibleEffects.eff_pure(handler::Type{<:Either}, value) = ExtensibleEffects.eff_pure(Identity, value)  # Const would never reach this
 
 
 # Iterable
 # --------
-ExtensibleEffects.eff_applies(handler::Type{<:Iterable}, value::Iterable) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Iterable}, effectful::Iterable) = true
 # everything else follows from the generic implementations of eff_autohandler, eff_pure and eff_flatmap
 
 
 # AbstractVector
 # --------------
-ExtensibleEffects.eff_applies(handler::Type{T}, value::T) where {T<:AbstractArray} = true
+ExtensibleEffects.eff_applies(handler::Type{T}, effectful::T) where {T<:AbstractArray} = true
 # eff_flatmap, eff_pure follow the generic implementation
 
 
 # Future/Task
 # -----------
-ExtensibleEffects.eff_applies(handler::Type{<:Task}, value::Task) = true
-ExtensibleEffects.eff_applies(handler::Type{<:Future}, value::Future) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Task}, effectful::Task) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Future}, effectful::Future) = true
 # we directly interprete Task and Future
 # finally surround interpreted expression by `@async`/`@spawnnat :any` to get back the Task/Future context
-ExtensibleEffects.eff_pure(handler::Type{<:Union{Task, Future}}, a) = a
-function ExtensibleEffects.eff_flatmap(continuation, a::Union{Task, Future})
-  continuation(fetch(a))
+ExtensibleEffects.eff_pure(handler::Type{<:Union{Task, Future}}, value) = value
+function ExtensibleEffects.eff_flatmap(continuation, effectful::Union{Task, Future})
+  continuation(fetch(effectful))
 end
 
 
 # Writer
 # ------
-ExtensibleEffects.eff_applies(handler::Type{<:Writer}, value::Writer) = true
+ExtensibleEffects.eff_applies(handler::Type{<:Writer}, effectful::Writer) = true
 function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
   eff_of_writer = continuation(a.value)
   map(eff_of_writer) do b
@@ -94,7 +94,7 @@ struct WriterHandler{Acc}
   pure_acc::Acc
 end
 WriterHandler() = WriterHandler(neutral)  # same default pure-accumulator which is also used in TypeClasses
-ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, value::Writer{Acc}) where Acc = true
+ExtensibleEffects.eff_applies(handler::WriterHandler{Acc}, effectful::Writer{Acc}) where Acc = true
 ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)
 # autohandler and eff_flatmap are the same
 
@@ -112,12 +112,12 @@ struct CallableHandler{Args, Kwargs}
   kwargs::Kwargs
   CallableHandler(args...; kwargs...) = new{typeof(args), typeof(kwargs)}(args, kwargs)
 end
-ExtensibleEffects.eff_applies(handler::CallableHandler, value::Callable) = true
+ExtensibleEffects.eff_applies(handler::CallableHandler, effectful::Callable) = true
 # we interpret callable by adding an extra Functor from the top outside, so that internally we can interpret each call
 # by just getting args and kwargs from the context
-ExtensibleEffects.eff_pure(handler::CallableHandler, a) = a
-function ExtensibleEffects.eff_flatmap(handler::CallableHandler, continuation, a::Callable)
-  continuation(a(handler.args...; handler.kwargs...))
+ExtensibleEffects.eff_pure(handler::CallableHandler, value) = value
+function ExtensibleEffects.eff_flatmap(handler::CallableHandler, continuation, effectful::Callable)
+  continuation(effectful(handler.args...; handler.kwargs...))
 end
 
 """
@@ -160,10 +160,10 @@ struct ContextManagerHandler{F}
   ContextManagerHandler(cont) = new{Core.Typeof(cont)}(cont)
 end
 
-ExtensibleEffects.eff_applies(handler::ContextManagerHandler, value::ContextManager) = true
-ExtensibleEffects.eff_pure(handler::ContextManagerHandler, a) = handler.cont(a)
-function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, c::ContextManager)
-  result = c(continuation)
+ExtensibleEffects.eff_applies(handler::ContextManagerHandler, effectful::ContextManager) = true
+ExtensibleEffects.eff_pure(handler::ContextManagerHandler, value) = handler.cont(value)
+function ExtensibleEffects.eff_flatmap(::ContextManagerHandler, continuation, effectful::ContextManager)
+  result = effectful(continuation)
   @assert(result.effectful isa NoEffect,
     "ContextManager should be run after all other effects,"*
     " however found result `$(result)` of type $(typeof(result))")
@@ -267,22 +267,22 @@ function ContextManagerCombinedHandler(other_handler, func::Union{Type, Function
   ContextManagerCombinedHandler{Core.Typeof(other_handler), Core.Typeof(func)}(other_handler, ContextManagerHandler(func))
 end
 
-function ExtensibleEffects.eff_applies(handler::ContextManagerCombinedHandler, value)
-  eff_applies(handler.other_handler, value) || eff_applies(handler.contextmanager_handler, value)
+function ExtensibleEffects.eff_applies(handler::ContextManagerCombinedHandler, effectful)
+  eff_applies(handler.other_handler, effectful) || eff_applies(handler.contextmanager_handler, effectful)
 end
 
-function ExtensibleEffects.eff_pure(handler::ContextManagerCombinedHandler, a)
-  b = ExtensibleEffects.eff_pure(handler.contextmanager_handler, a)
-  ExtensibleEffects.eff_pure(handler.other_handler, b)
+function ExtensibleEffects.eff_pure(handler::ContextManagerCombinedHandler, value)
+  value′ = ExtensibleEffects.eff_pure(handler.contextmanager_handler, value)
+  ExtensibleEffects.eff_pure(handler.other_handler, value′)
 end
-function ExtensibleEffects.eff_flatmap(handler::ContextManagerCombinedHandler, continuation, a)
-  if eff_applies(handler.other_handler, a)
-    ExtensibleEffects.eff_flatmap(handler.other_handler, continuation, a)
-  elseif eff_applies(handler.contextmanager_handler, a)
-    ExtensibleEffects.eff_flatmap(handler.contextmanager_handler, continuation, a)
+function ExtensibleEffects.eff_flatmap(handler::ContextManagerCombinedHandler, continuation, effectful)
+  if eff_applies(handler.other_handler, effectful)
+    ExtensibleEffects.eff_flatmap(handler.other_handler, continuation, effectful)
+  elseif eff_applies(handler.contextmanager_handler, effectful)
+    ExtensibleEffects.eff_flatmap(handler.contextmanager_handler, continuation, effectful)
   else
     error("ContextManagerCombinedHandler should only be eff_flatmap on values which can either be handled "*
-    "by ContextManagerHandler or by other_handler = `$(handler.other_handler)`. However got value `$a`")
+    "by ContextManagerHandler or by other_handler = `$(handler.other_handler)`. However got effectful `$effectful`")
   end
 end
 
@@ -298,7 +298,7 @@ Handler for running State. Gives the initial state.
 struct StateHandler{T}
   state::T
 end
-ExtensibleEffects.eff_applies(handler::StateHandler, value::State) = true
+ExtensibleEffects.eff_applies(handler::StateHandler, effectful::State) = true
 ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state)
 
 # The updating of the state cannot be described by plain `eff_flatmap`.
