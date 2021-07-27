@@ -1,0 +1,11 @@
+[deps]
+ExtensibleEffects = "67377c25-f533-4d0b-9328-1721380cc1f1"
+TypeClasses = "addcc920-e0cf-11e8-30b7-0fb08706b574"
+DataTypesBasic = "83eed652-29e8-11e9-12da-a7c29d64ffc9"
+
+[compat]
+julia = "1.6"
+TypeClasses = "1.1"
+DataTypesBasic = "2.0"
+ExtensibleEffects = "1.1"
+
