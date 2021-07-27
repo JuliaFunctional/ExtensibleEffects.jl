@@ -1,7 +1,7 @@
 name = "ExtensibleEffects"
 uuid = "67377c25-f533-4d0b-9328-1721380cc1f1"
 authors = ["Stephan Sahm <stephan.sahm@gmx.de> and contributors"]
-version = "1.1.0"
+version = "1.1.1"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
