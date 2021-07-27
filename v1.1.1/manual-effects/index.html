@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Effects · ExtensibleEffects.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://JuliaFunctional.github.io/ExtensibleEffects.jl/manual-effects/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">ExtensibleEffects.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../manual-introduction/">Introduction</a></li><li class="is-active"><a class="tocitem" href>Effects</a><ul class="internal"><li><a class="tocitem" href="#Easy-Effects-with-trivial-handlers"><span>Easy Effects with trivial handlers</span></a></li><li><a class="tocitem" href="#Option,-Try,-Either"><span>Option, Try, Either</span></a></li><li><a class="tocitem" href="#Handlers-With-Additional-Parameters"><span>Handlers With Additional Parameters</span></a></li><li><a class="tocitem" href="#Outer-Wrappers"><span>Outer Wrappers</span></a></li><li><a class="tocitem" href="#Outer-Wrappers-ContextManager-and-the-execution-order"><span>Outer Wrappers - ContextManager and the execution order</span></a></li><li><a class="tocitem" href="#Handlers-which-need-to-be-updated-from-one-effect-to-another"><span>Handlers which need to be updated from one effect to another</span></a></li><li><a class="tocitem" href="#Combining-wrappers-like-@runcallable,-@runcontextmanager-and-@runstate"><span>Combining wrappers like <code>@runcallable</code>, <code>@runcontextmanager</code> and <code>@runstate</code></span></a></li><li><a class="tocitem" href="#Limitations"><span>Limitations</span></a></li></ul></li><li><a class="tocitem" href="../manual-how-it-works/">How it works</a></li><li><a class="tocitem" href="../manual-juliacon/">JuliaCon 2021</a></li></ul></li><li><a class="tocitem" href="../library/">Library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Manual</a></li><li class="is-active"><a href>Effects</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Effects</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaFunctional/ExtensibleEffects.jl/blob/master/docs/src/manual-effects.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Effects"><a class="docs-heading-anchor" href="#Effects">Effects</a><a id="Effects-1"></a><a class="docs-heading-anchor-permalink" href="#Effects" title="Permalink"></a></h1><p>ExtensibleEffects.jl comes packed with a bunch of effects which can be used right away and in addition provide helpful insights into how to create your own effects. A lot is possible within ExtensibleEffects, but there are also limitations. </p><h2 id="Easy-Effects-with-trivial-handlers"><a class="docs-heading-anchor" href="#Easy-Effects-with-trivial-handlers">Easy Effects with trivial handlers</a><a id="Easy-Effects-with-trivial-handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Easy-Effects-with-trivial-handlers" title="Permalink"></a></h2><p><code>Vector</code>, <code>Iterable</code>, and also <code>Writer</code> only need to define <code>eff_applies</code></p><pre><code class="language-julia hljs"># Vector is supported generically as AbstractArray
+ExtensibleEffects.eff_applies(handler::Type{T}, effectful::T) where {T&lt;:AbstractArray} = true
+ExtensibleEffects.eff_applies(handler::Type{&lt;:Iterable}, effectful::Iterable) = true
+ExtensibleEffects.eff_applies(handler::Type{&lt;:Writer}, effectful::Writer) = true</code></pre><p><code>eff_applies</code> always needs to be given explicitly. This is especially needed for the autorun feature, and explicitness is also in general useful. </p><p>The definitions for <code>eff_pure</code> and <code>eff_flatmap</code> follows their default implementations, which use functionality from <code>TypeClasses</code>.</p><pre><code class="language-julia hljs">ExtensibleEffects.eff_pure(T, value) = TypeClasses.pure(T, value)
+
+function ExtensibleEffects.eff_flatmap(continuation, a)
+  a_of_eff_of_a = map(continuation, a)
+  eff_of_a_of_a = flip_types(a_of_eff_of_a)
+  eff_of_a = map(flatten, eff_of_a_of_a)
+  eff_of_a
+end</code></pre><h2 id="Option,-Try,-Either"><a class="docs-heading-anchor" href="#Option,-Try,-Either">Option, Try, Either</a><a id="Option,-Try,-Either-1"></a><a class="docs-heading-anchor-permalink" href="#Option,-Try,-Either" title="Permalink"></a></h2><p><code>Identity</code> and <code>Const</code>, i.e. <code>Option</code>, <code>Try</code> and <code>Either</code>, need a bit more interaction with the effect system.</p><p>The design decision of unifying <code>Option</code>/<code>Try</code>/<code>Either</code> by separating normal behaviour into <code>Identity</code> and stopping behaviour into <code>Const</code> has many advantages. One difficulty, however, is that <code>Const</code> does not have a <code>TypeClasses.pure</code> implementation, so how do we define <code>eff_pure</code>? The answer is an important insight into how <code>ExtensibleEffects</code> work: The <code>pure</code> function is only called on the final values within all the nested <code>eff_flatmap</code> calls. After destructuring all nested effects into plain values, the effects get rewrapped around the plain values. A <code>Const</code>, however, is always constant - there is no inner value to work on. That is why we can freely use any <code>eff_pure</code> definition, as it will never be run in case of a <code>Const</code>. However it will be run within <em>other</em> handlers for reconstructing their stack of wrappers. Hence the simplest and sound <code>eff_pure</code> implementation is to do nothing but leave the value unchanged. All in all this is the implementation for <code>Const</code></p><pre><code class="language-julia hljs">ExtensibleEffects.eff_flatmap(continuation, effectful::Const) = effectful
+ExtensibleEffects.eff_pure(handler::Type{&lt;:Const}, value) = value</code></pre><p>You see, the continuation is ignored and <code>eff_pure</code> just returns the very same value.</p><p>The interaction between <code>Const</code> and <code>Identity</code> needs to be handled in addition. If something would return a <code>Const</code> the default implementation of <code>eff_pure</code> for <code>Identity</code> would wrap it into an <code>Identity</code> layer, resulting into <code>Identity(Const(...))</code>. This differs from the <code>TypeClasses.flatmap</code> implementation which would return just a <code>Const(...)</code>. This interaction is crucial for <code>Option</code>/<code>Try</code>/<code>Either</code>. We can implement it by special casing the <code>eff_pure</code></p><pre><code class="language-julia hljs">ExtensibleEffects.eff_pure(handler::Type{&lt;:Identity}, value) = Identity(value)
+ExtensibleEffects.eff_pure(handler::Type{&lt;:Identity}, value::Const) = value
+
+ExtensibleEffects.eff_flatmap(continuation, effectful::Identity) = continuation(effectful.value)</code></pre><p>Take a look at the definition of <code>eff_flatmap</code> for <code>Identity</code>. <code>eff_flatmap</code> gets a <code>continuation</code> which when called returns an <code>Eff{YourEffectType{Value}}</code> and should always return an <code>Eff{YourEffectType{Value}}</code> as well, i.e. <code>Eff{Identity{Value}}</code> in our case. Usually it is quite difficult to apply the <code>continuation</code> and return the same type, but for <code>Identity</code> the case is super simple, as we can just strip away the outer <code>Identity</code> layer.</p><p>Finally, in case you disable the default <code>autorun</code> feature, you may also want to use <code>Option</code>/<code>Try</code>/<code>Either</code> as the handlers instead of specifying the two handlers <code>Identity</code> and <code>Const</code> separately. This is enabled by explicitly defining <code>eff_applies</code> and forwarding the <code>eff_pure</code> to the case for <code>Identity</code>. The <code>eff_flatmap</code> will automatically fallback to those for <code>Identity</code> or <code>Const</code> respectively.</p><pre><code class="language-julia hljs">ExtensibleEffects.eff_applies(handler::Type{&lt;:Either}, effectful::Either) = true
+ExtensibleEffects.eff_pure(handler::Type{&lt;:Either}, value) = ExtensibleEffects.eff_pure(Identity, value)  # Const would never reach this
+</code></pre><hr/><p>All these effects can still be run automatically, without any further context parameters. In ExtensibleEffect terms, this means that <code>Option</code>, <code>Vector</code>, <code>Iterable</code> and the like are handlers by its own and can be autorun.</p><p>We acknowledge this everytime we define <code>eff_applies</code> like <code>ExtensibleEffects.eff_applies(handler::Type{&lt;:HandlerType}, value::HandlerType) = true</code>.</p><h2 id="Handlers-With-Additional-Parameters"><a class="docs-heading-anchor" href="#Handlers-With-Additional-Parameters">Handlers With Additional Parameters</a><a id="Handlers-With-Additional-Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Handlers-With-Additional-Parameters" title="Permalink"></a></h2><p>The <code>Writer</code> monad is actually similar to <code>Vector</code> when using its default accumulator <code>TypeClasses.neutral</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; @syntax_eff begin
+         a = Writer(&quot;hello.&quot;, 1)
+         b = Writer(&quot;world.&quot;, 2)
+         @pure a + b
+       end
+Writer{String, Int64}(&quot;hello.world.&quot;, 3)</code></pre><p>However, if you want to use another accumulator as the default one, extra adaptations are required. Unlike <code>Option</code> such a parameter cannot be added by simply overloading <code>eff_pure</code> or the like, but we need an extra handler type which can carry all additional information needed.</p><pre><code class="language-julia-repl hljs">julia&gt; @runhandlers (WriterHandler(&quot;pure-accumulator.&quot;), Vector) @syntax_eff_noautorun begin
+         a = Writer(&quot;hello.&quot;, 1)
+         b = Writer(&quot;world.&quot;, 2)
+         c = [3, 4]
+         @pure a + b + c
+       end
+Writer{String, Vector{Int64}}(&quot;hello.world.pure-accumulator.&quot;, [6, 7])
+
+julia&gt; @runhandlers (Vector, WriterHandler(&quot;pure-accumulator.&quot;)) @syntax_eff_noautorun begin
+         a = Writer(&quot;hello.&quot;, 1)
+         b = Writer(&quot;world.&quot;, 2)
+         c = [3, 4]
+         @pure a + b + c
+       end
+2-element Vector{Writer{String, Int64}}:
+ Writer{String, Int64}(&quot;hello.world.pure-accumulator.&quot;, 6)
+ Writer{String, Int64}(&quot;hello.world.pure-accumulator.&quot;, 7)</code></pre><p>The example may be slightly artifical, however you can see nicely how the <code>eff_pure</code> function works differently when using an explicit <code>WriteHandler</code> handler. Also, you do not see multiple <code>&quot;pure-accumulator.&quot;</code> accumulating for each single value. Instead you have tight control about whether first the indeterminism by <code>Vector</code> should be run and then the accumulator by <code>Writer</code> or the other way arround. Either way, in both cases everything is sound and nice.</p><p>The handler is defined by</p><pre><code class="language-julia hljs">struct WriterHandler{Acc}
+  pure_acc::Acc
+end
+ExtensibleEffects.eff_applies(handler::WriterHandler, effectful::Writer) = true
+ExtensibleEffects.eff_pure(handler::WriterHandler, value) = Writer(handler.pure_acc, value)</code></pre><p><code>eff_flatmap</code> is the same as for pure <code>Writer</code> and defined as</p><pre><code class="language-julia hljs">function ExtensibleEffects.eff_flatmap(continuation, a::Writer)
+  eff_of_writer = continuation(a.value)
+  map(eff_of_writer) do b
+    Writer(a.acc ⊕ b.acc, b.value)
+  end
+end</code></pre><h2 id="Outer-Wrappers"><a class="docs-heading-anchor" href="#Outer-Wrappers">Outer Wrappers</a><a id="Outer-Wrappers-1"></a><a class="docs-heading-anchor-permalink" href="#Outer-Wrappers" title="Permalink"></a></h2><p>There are other effects which really require external parameters in order to work at all. One such monad is <code>Callable</code>, i.e. plain functions. A function needs to be called to get at its value, however with which <code>args</code> and <code>kwargs</code> should the function be called? These need to be given somehow, and hence we require for a specific handler like seen for <code>WriterHandler</code>. It is called <code>CallableHandler</code> and is defined as follows</p><pre><code class="language-julia hljs">struct CallableHandler{Args, Kwargs}
+  args::Args
+  kwargs::Kwargs
+end
+ExtensibleEffects.eff_applies(handler::CallableHandler, value::Callable) = true
+ExtensibleEffects.eff_pure(handler::CallableHandler, a) = a
+function ExtensibleEffects.eff_flatmap(handler::CallableHandler, continuation, a::Callable)
+  continuation(a(handler.args...; handler.kwargs...))
+end</code></pre><p>In addition, we would like to construct a <code>Callable</code> as the return value, i.e. wrapping everything into a Function itself which asks for the <code>args</code> and <code>kwargs</code>. We do this by a special macro <code>@runcallable</code> which can be composed with other such outer wrappers thanks to the <code>ExtensibleEffects.@insert_into_runhandlers</code> helper macro.</p><pre><code class="language-julia hljs">@runcallable eff</code></pre><p>translates to</p><pre><code class="language-julia hljs">Callable(function(args...; kwargs...)
+  @insert_into_runhandlers CallableHandler(args...; kwargs...) eff
+end)</code></pre><p>Types like <code>Callable</code> cannot be autorun, and thankfully, <code>ExtensibleEffects</code> can recognize this automatically. All in all we get</p><pre><code class="language-julia-repl hljs">julia&gt; f = @runcallable @syntax_eff begin
+         a = Callable(x -&gt; x*x)
+         b = Callable(x -&gt; 2x)
+         @pure a + b
+       end;
+
+julia&gt; f(7)
+63</code></pre><h2 id="Outer-Wrappers-ContextManager-and-the-execution-order"><a class="docs-heading-anchor" href="#Outer-Wrappers-ContextManager-and-the-execution-order">Outer Wrappers - ContextManager and the execution order</a><a id="Outer-Wrappers-ContextManager-and-the-execution-order-1"></a><a class="docs-heading-anchor-permalink" href="#Outer-Wrappers-ContextManager-and-the-execution-order" title="Permalink"></a></h2><p>Another example for a Monad which requires an outer wrapper is the <code>ContextManager</code> type from <code>DataTypesBasic.jl</code>. It needs a continuation to be run, and ideally should return everything wrapped into a new <code>ContextManager</code> so that the executions can be lazy. Very analogous to the requirements of <code>Callable</code>, and indeed there is <code>ContextManagerHandler(continuation)</code> and <code>@runcontextmanager</code>, just like for <code>Callable</code>. There is one extra caveat which is very special to ContextManagers and that is the <strong>execution order</strong>.</p><p>It turns out, <code>ContextManager</code> is actually one of the most difficult computational contexts to be represented within Extensible Effects. This is because, within <code>Eff</code> the continuations always return another <code>Eff</code>, within which other effects still need to be handled. The computation inside was not fully executed and is hold frozen for later execution. However, the ContextManager semantics really depend on the assumption, that whatever uses the internal value has finished before the ContextManager exits. Otherwise loaded resources may have been destroyed before they are actually used.</p><p>The only way to solve this conflict is that the <strong>ContextManager handler needs to run last</strong>. This is actually checked by the <code>ContextManagerHandler</code>, however as <code>@runcontextmanager</code> wraps everything again into a lazy ContextManager, you need to run it to see the error. The macro version <code>@runcontextmanager_</code> (with an underscore) will immediately execute the ContextManager and hence would also directly throw the error.</p><hr/><p>There is further a special handler <code>ContextManagerCombinedHandler</code> which improves the execution order for memory performance. </p><p>Let&#39;s have a simple factory for ContextManagers for example purposes</p><pre><code class="language-julia-repl hljs">julia&gt; create_context(x) = @ContextManager continuation -&gt; begin
+           println(&quot;before $x&quot;)
+           result = continuation(x)
+           println(&quot;after $x&quot;)
+           result
+       end
+create_context (generic function with 1 method)
+
+julia&gt; println_return(x) = (println(x); x)
+println_return (generic function with 1 method)</code></pre><p>Using <code>ContextManagerHandler</code> we get</p><pre><code class="language-julia-repl hljs">julia&gt; eff = @syntax_eff begin
+         a = [100,200]
+         b = create_context(a)
+         c = [5,6]
+         d = create_context(a + c)
+         @pure a, b, c, d
+       end;
+
+julia&gt; @runhandlers (ContextManagerHandler(println_return),) eff
+before 100
+before 105
+before 106
+before 200
+before 205
+before 206
+[(100, 100, 5, 105), (100, 100, 6, 106), (200, 200, 5, 205), (200, 200, 6, 206)]
+after 206
+after 205
+after 200
+after 106
+after 105
+after 100
+4-element Vector{NTuple{4, Int64}}:
+ (100, 100, 5, 105)
+ (100, 100, 6, 106)
+ (200, 200, 5, 205)
+ (200, 200, 6, 206)</code></pre><p>Alternatively, we can use a combined handler <code>ContextManagerCombinedHandler</code> which runs both handlers at once. Intuitively you may think this cannot change anything, but indeed, quite a lot is changed.</p><pre><code class="language-julia-repl hljs">julia&gt; eff = @syntax_eff noautorun(Vector) begin
+         a = [100,200]
+         b = create_context(a)
+         c = [5,6]
+         d = create_context(a + c)
+         @pure a, b, c, d
+       end
+Eff(effectful=[100, 200], length(cont)=1)
+
+julia&gt; handlers = (ContextManagerCombinedHandler(Vector, println_return),)
+(ContextManagerCombinedHandler{Type{Vector{T} where T}, typeof(println_return)}(Vector{T} where T, ContextManagerHandler{typeof(println_return)}(println_return)),)
+
+julia&gt; @runhandlers handlers eff
+before 100
+before 105
+(100, 100, 5, 105)
+after 105
+before 106
+(100, 100, 6, 106)
+after 106
+after 100
+before 200
+before 205
+(200, 200, 5, 205)
+after 205
+before 206
+(200, 200, 6, 206)
+after 206
+after 200
+4-element Vector{NTuple{4, Int64}}:
+ (100, 100, 5, 105)
+ (100, 100, 6, 106)
+ (200, 200, 5, 205)
+ (200, 200, 6, 206)</code></pre><p>The difference lies in the different continuations (stored within <code>Eff.cont</code>) which are created internally during the run of the handler. When the <code>Vector</code> handler was executed independently beforehand, the <code>ContextManagerHandler</code> worked with far larger continuations, which actually reached up to the end of the entire computation. Now when running both handlers at once, the continuation is more intuitive, namely the one which only goes up to the end of the for loop iteration (thinking of Vector handling like for loop execution).</p><h2 id="Handlers-which-need-to-be-updated-from-one-effect-to-another"><a class="docs-heading-anchor" href="#Handlers-which-need-to-be-updated-from-one-effect-to-another">Handlers which need to be updated from one effect to another</a><a id="Handlers-which-need-to-be-updated-from-one-effect-to-another-1"></a><a class="docs-heading-anchor-permalink" href="#Handlers-which-need-to-be-updated-from-one-effect-to-another" title="Permalink"></a></h2><p>The most advanced possibility of defining effects is showcased by <code>State</code>. It needs a custom handler which provides the initial state information <code>StateHandler(state)</code>, similar to <code>Callable</code>. In addition, every effect actually adapts the state, and hence the handler itself must be updated accordingly so that subsequent effects are actually handled with the correct current state. This can be done by implementing your individual <code>ExtensibleEffects.runhandler</code> method. Let&#39;s take a look on how <code>StateHandler</code> is implemented.</p><pre><code class="language-julia hljs">struct StateHandler{T}
+  state::T
+end
+ExtensibleEffects.eff_applies(handler::StateHandler, effectful::State) = true
+ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state)</code></pre><p>The type is very simple, it just stores the initial or current state. <code>eff_applies</code> is defined the standard way, and <code>eff_pure</code> is not returning a <code>State</code> object itself, but instead what a standard State function <code>state -&gt; (value, state)</code> would return. This is similar to <code>Callable</code> where <code>eff_pure</code> also does not construct a <code>Callable</code>. A difference though is that here we need to change the return value, appending the state, so that outer wrappers can construct a fully valid <code>State</code> object.</p><p>Now comes the trick to pass on the internal states</p><pre><code class="language-julia hljs">function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
+  eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
+  
+  value, nextstate = eff.effectful(handler.state)
+  nexthandler = StateHandler(nextstate)
+  if isempty(eff.cont)
+    _eff_pure(nexthandler, value)
+  else
+    runhandler(nexthandler, eff.cont(value))
+  end
+end</code></pre><p><code>ExtensibleEffects.runhandler</code> is the key function to overwrite if you would like to define what happens <em>between</em> evaluations of your effectful type.</p><ol><li>The first line checks whether our handler <code>StateHandler</code> actually applies to the given effectful, and if not, we return the result of a helper function <code>runhandler_not_applies</code>.</li><li>Everything which follows implements the case that our handler applies and hence assumes that <code>eff.effectful</code> is of type <code>State</code>.</li><li>We run the <code>State</code>, given our previous state from the handler, and get the nextstate which we use to construct the nexthandler.</li><li>Depending on whether we already reached the end of our effect program <code>eff</code>, we either stop with <code>_eff_pure</code>, or recurse into <code>runhandler</code> again.</li></ol><p>Finally, similar to <code>Callable</code> and <code>ContextManager</code> there also exists a run macro for <code>State</code>, called <code>runstate</code>, which will wrap everything into a <code>State</code> within which the <code>StateHandler</code> is run. Let&#39;s see everything in action</p><pre><code class="language-julia-repl hljs">julia&gt; state_eff = @runstate @syntax_eff begin
+         a = State(x -&gt; (x+2, x*x))
+         b = State(x -&gt; (a + x, x+1))
+         @pure a, b
+       end;
+
+julia&gt; state_eff(3)
+((5, 14), 10)</code></pre><p>Note that unlike <code>Callable</code> and <code>ContextManager</code>, a <code>State</code> always has to ensure that it is the <strong>first outer wrapper</strong> being run, because it returns the inner state as an additional argument.</p><p>If you would nest it within  <code>@runcallable</code>, e.g. like <code>@runstate @runcallable eff</code> it wouldn&#39;t work, as now the appended state is within the <code>Callable</code> and not directly within the <code>State</code>, violating the definition of <code>State</code>.</p><h2 id="Combining-wrappers-like-@runcallable,-@runcontextmanager-and-@runstate"><a class="docs-heading-anchor" href="#Combining-wrappers-like-@runcallable,-@runcontextmanager-and-@runstate">Combining wrappers like <code>@runcallable</code>, <code>@runcontextmanager</code> and <code>@runstate</code></a><a id="Combining-wrappers-like-@runcallable,-@runcontextmanager-and-@runstate-1"></a><a class="docs-heading-anchor-permalink" href="#Combining-wrappers-like-@runcallable,-@runcontextmanager-and-@runstate" title="Permalink"></a></h2><p>Within the ExtensibleEffects framework, different <em>handlers</em> naturally compose nicely in order to execute all the given effects. Constructing <em>wrappers</em> around the solution, like it does <code>@runcallable</code> for example, is not part of the standard extensible effects framework though. Nevertheless, especially if you want to replace Monads (<a href="https://www.github.com/JuliaFunctional/TypeClasses.jl">TypeClasses.jl</a>) with <a href="https://www.github.com/JuliaFunctional/ExtensibleEffects.jl">ExtensibleEffects.jl</a>, being able to construct these wrappers easily and composable makes for a very intuitive plug-and-play interface.</p><p>In order to compose wrappers, we currently use a macro approach. Each wrapper (including custom ones) constructs its wrapper-code using macros. Take a look at <code>@runcallable</code> again. It is defined like</p><pre><code class="language-julia hljs">macro runcallable(expr)
+  esc(:(Callable(function(args...; kwargs...)
+    @insert_into_runhandlers CallableHandler(args...; kwargs...) ($expr)
+  end)))
+end</code></pre><p>i.e.</p><pre><code class="language-julia hljs">@runcallable eff</code></pre><p>translates to</p><pre><code class="language-julia hljs">Callable(function(args...; kwargs...)
+  @insert_into_runhandlers CallableHandler(args...; kwargs...) eff
+end)</code></pre><p><code>@insert_into_runhandlers</code> will expand all inner macros and search for a call to <code>runhandlers</code> in order to insert the newly constructed <code>CallableHandler</code>. If no <code>runhandlers</code> is found, it will call it itself.</p><p>Using this style, all wrappers can be written very concisely and combined in arbitrary order (in principle). There is an alternative way of implementating it using nested functions instead of macros, however the syntax would look more polluted and we haven&#39;t seen crucial disadvantages of the macro approach yet.</p><p>Despite this nice generic composability, as <code>@runstate</code> needs always be run first and <code>@runcontextmanager</code> needs to run last, in our concrete example the order is given by the semantics of the wrappers: It would be <code>@runcontextmanager @runcallable @runstate</code></p><pre><code class="language-julia-repl hljs">julia&gt; contextmanager_callable_state = @runcontextmanager @runcallable @runstate @syntax_eff begin
+         co = create_context(42)
+         st = State(s -&gt; (co+s, s*s))
+         ca = Callable(x -&gt; x + st + co)
+         @pure co, st, ca
+       end;
+
+julia&gt; typeof(contextmanager_callable_state).name
+typename(ContextManager)
+
+julia&gt; typeof(contextmanager_callable_state(println_return)).name
+typename(Callable)
+
+julia&gt; typeof(contextmanager_callable_state(println_return)(3)).name
+typename(State)
+
+julia&gt; contextmanager_callable_state(println_return)(3)(9)
+before 42
+((42, 51, 96), 81)
+after 42
+((42, 51, 96), 81)</code></pre><h2 id="Limitations"><a class="docs-heading-anchor" href="#Limitations">Limitations</a><a id="Limitations-1"></a><a class="docs-heading-anchor-permalink" href="#Limitations" title="Permalink"></a></h2><p>ExtensibleEffects can do quite a lot, however some things are just not possible.</p><p>One such limitation are infinite iterables. They are not supportable. The reason is that ExtensibleEffects always run effects by translating them to operations on plain values. With an infinite iterable there is no way to extract all the values though. If you know more about your infite iterable, it may become possible again. For instance it could be a simple infinite repetition of the same element. In such cases we indeed can extract &quot;all&quot; values at once, operate on it, and reconstruct the repeating iterable around it.</p><p>A second limitation is that we need to know a way to wrap a plain value into our handled effect. While we can always make an <code>a</code> into an <code>[a]</code>, it is not possible to wrap it into a <code>Dict</code> for instance. Which key would you choose? In general, a function like this is called <code>pure</code>, and it is needed because ExtensibleEffects work by first breaking down everything into values before reconstructing the respective effects from scratch.</p><p>Compare both limitations to the fully supported <code>Callable</code> type. Also here, the value is hidden within the respective function, however we know how to principally get the value, namely by applying correct <code>args</code> and <code>kwargs</code> to the callable. Hence we can indeed operate on the value within a Callable, which lets us support Callable by ExtensibleEffects. Something like this is not possible with infinite iterables. Also we can wrap a value into a Callable by creating a constant function <code>(args...; kwargs...) -&gt; a</code>, which is not possible for a dictionary.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../manual-introduction/">« Introduction</a><a class="docs-footer-nextpage" href="../manual-how-it-works/">How it works »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Tuesday 27 July 2021 18:08">Tuesday 27 July 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
