@@ -306,12 +306,12 @@ ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state
 function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
   eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
   
-  nextvalue, nextstate = eff.effectful(handler.state)
+  value, nextstate = eff.effectful(handler.state)
   nexthandler = StateHandler(nextstate)
   if isempty(eff.cont)
-    _eff_pure(nexthandler, nextvalue)
+    _eff_pure(nexthandler, value)
   else
-    runhandler(nexthandler, eff.cont(nextvalue))
+    runhandler(nexthandler, eff.cont(value))
   end
 end
 
