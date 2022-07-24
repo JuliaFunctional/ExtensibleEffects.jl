@@ -22,21 +22,21 @@ is handled independently on its own
 struct Eff{Effectful, Fs}
   effectful::Effectful
   cont::Continuation{Fs}
-
-  function Eff(effectful::T, cont::Continuation{Fs}) where {T, Fs}
-    if !isempty(cont) && effectful isa NoEffect
-      # Evaluate NoEffect directly to make sure, we don't have a chain of NoEffect function accumulating
-      # e.g. with ContextManager this could lead to things not being evaluated, while the syntax suggest
-      # everything is evaluated, and hence the ContextManager may finalize resource despite they are still used.
-      cont(effectful.value)
-
-    else
-      # also run this if isempty(cont) to stop infinite recursion
-      # (which happens otherwise because empty cont results returns noeffect for convenience)
-      new{T, Fs}(effectful, cont)
-    end
-  end
 end
+
+function Eff(effectful::E, cont::Continuation{Tuple{}}) where E<:NoEffect
+  # also run this if isempty(cont) to stop infinite recursion
+  # (which happens otherwise because empty cont results returns noeffect for convenience)
+  Eff{E, Tuple{}}(effectful, cont)
+end
+
+function Eff(effectful::NoEffect, cont::Continuation{Fs}) where Fs
+  # Evaluate NoEffect directly to make sure, we don't have a chain of NoEffect function accumulating
+  # e.g. with ContextManager this could lead to things not being evaluated, while the syntax suggest
+  # everything is evaluated, and hence the ContextManager may finalize resource despite they are still used.
+  cont(effectful.value)
+end
+
 Eff(effectful) = Eff(effectful, Continuation())
 
 function Base.show(io::IO, eff::Eff)
@@ -60,16 +60,17 @@ effect(eff::Eff) = eff  # if we find a Eff effect, we just directly use it
 # Functionalities for Continuation
 # --------------------------------
 
-function (c::Continuation)(value)
-  if isempty(c)
-    noeffect(value)
-  else
-    first_func = c.functions[1]
-    rest = c.functions[2:end]
-    eff = first_func(value)
-    Eff(eff.effectful, Continuation(eff.cont.functions..., rest...))
-  end
+function (c::Continuation{Tuple{}})(value)
+  # mapping empty continuation is the same as wrapping into noeffect
+  noeffect(value)
 end
+function (c::Continuation)(value)
+  first_func = Base.first(c.functions)
+  rest = Base.tail(c.functions)
+  eff = first_func(value)
+  Eff(eff.effectful, Continuation(eff.cont.functions..., rest...))
+end
+
 Base.isempty(c::Continuation) = Base.isempty(c.functions)
 Base.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
 
