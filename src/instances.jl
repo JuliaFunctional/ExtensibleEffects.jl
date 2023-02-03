@@ -308,11 +308,10 @@ function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
   
   value, nextstate = eff.effectful(handler.state)
   nexthandler = StateHandler(nextstate)
-  if isempty(eff.cont)
-    _eff_pure(nexthandler, value)
-  else
+  ifemptyelse(eff.cont, 
+    _eff_pure(nexthandler, value),
     runhandler(nexthandler, eff.cont(value))
-  end
+  )
 end
 
 """
@@ -328,11 +327,12 @@ macro runstate(expr)
   # Note, that we have to use `runhandlers` explicitly, such that other outer handlers using `@insert_into_runhandlers`
   # can interact well with this outer handler.
   esc(quote
-    let eff = $expr
+    let eff = $expr      
       isa(eff, ExtensibleEffects.Eff) || error("""
         `@runstate` only works for `Eff` type, got `$(typeof(eff))`.
         Try to use `@runstate` as you first outer handler, which is directly applied to the `Eff`.
         """)
+      @assert eff isa ExtensibleEffects.Eff
       ExtensibleEffects.State() do state
         ExtensibleEffects.runhandlers(ExtensibleEffects.StateHandler(state), eff)
       end
