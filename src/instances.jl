@@ -1,4 +1,4 @@
-using ExtensibleEffects
+using .ExtensibleEffects
 using DataTypesBasic
 using TypeClasses
 using Distributed
