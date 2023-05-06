@@ -44,11 +44,12 @@ function _autorun(handlers, eff::Eff)
 
     # The same we want to happen if we found a handler which cannot be handled automatically.
     # We just skip it and leave it for later handling.
-    interpreted_continuation = if isempty(eff.cont)
-      Continuation()
-    else
+
+    interpreted_continuation = ifemptyelse(eff.cont, 
+      Continuation(), 
       Continuation(x -> _autorun(handlers, eff.cont(x)))
-    end
+    )
+
     # unwrap NoAutoRun if found
     value = eff.effectful isa NoAutoRun ? eff.effectful.value : eff.effectful
     Eff(value, interpreted_continuation)
@@ -57,11 +58,10 @@ function _autorun(handlers, eff::Eff)
     # recursing into runhandler on the interpreted_continuation, we want to handle all yet unseen nested handlers.
     # We do this by first calling `_autorun` before calling `runhandler` within the interpreted_continuation.
     handlers_new = (handler, handlers...)
-    interpreted_continuation = if isempty(eff.cont)
-      Continuation(x -> _eff_pure(handler, x))
-    else
+    interpreted_continuation = ifemptyelse(eff.cont,
+      Continuation(x -> _eff_pure(handler, x)),
       Continuation(x -> runhandler(handler, _autorun(handlers_new, eff.cont(x))))
-    end
+        )
     _eff_flatmap(handler, interpreted_continuation, eff.effectful)
   end
 end

@@ -32,11 +32,11 @@ end
 like `ExtensibleEffects.runlast`, however if the Eff is not yet completely handled, it just returns it.
 """
 function runlast_ifpossible(final::Eff)
-  if isempty(final.cont) && final.effectful isa NoEffect
-    final.effectful.value
-  else
+  ifemptyelse(
+    final.cont,
+    final.effectful isa NoEffect ? final.effectful.value : final,
     final
-  end
+  )
 end
 
 
@@ -49,16 +49,16 @@ key method to run an effect on some effecthandler Eff
 note that we represent effectrunners as plain types in order to associate
 standard effect runners with types like Vector, Option, ...
 """
-function runhandler(handler, eff::Eff)
+function runhandler(handler, eff::Eff) 
   eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
 
-  interpreted_continuation = if isempty(eff.cont)
+  interpreted_continuation = ifemptyelse(eff.cont,
     # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff` 
     # because there is the handler which may have extra information
-    Continuation(x -> _eff_pure(handler, x))
-  else
+    Continuation(x -> _eff_pure(handler, x)),
     Continuation(x -> runhandler(handler, eff.cont(x)))
-  end
+  )
+
   _eff_flatmap(handler, interpreted_continuation, eff.effectful)
 end
 
@@ -68,11 +68,9 @@ end
 if your handler does not apply, use this as the fallback to handle the unknown effect. 
 """
 function runhandler_not_applies(handler, eff::Eff)
-  interpreted_continuation = if isempty(eff.cont)
-    Continuation(x -> _eff_pure(handler, x))
-  else
-    Continuation(x -> runhandler(handler, eff.cont(x)))
-  end
+  interpreted_continuation = ifemptyelse(eff.cont,
+    Continuation(x -> _eff_pure(handler, x)),
+    Continuation(x -> runhandler(handler, eff.cont(x))))
   # if we don't know how to handle the current eff, we return it with the new continuation
   # this ensures the handler is applied recursively
   Eff(eff.effectful, interpreted_continuation)
@@ -142,7 +140,7 @@ eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_
 # eff_pure
 # --------
 
-function _eff_pure(handler, value)
+function _eff_pure(handler::H, value) where {H}
   result = eff_pure(handler, value)
   noeffect(result)
 end
