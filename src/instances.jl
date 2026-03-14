@@ -17,6 +17,30 @@ function ExtensibleEffects.eff_flatmap(continuation, a)
   eff_of_a
 end
 
+# Try to improve performance by merging map and flip_types
+function eff_flatmap_iteration(continuation::F, iter::T) where {F, T}
+  first = iterate(iter)
+  if first === nothing
+    # only in this case we actually need `pure(eltype(T))` and `neutral(T)`
+    # for non-empty sequences everything works for Types without both
+    # TODO include continuation
+    pure(T, neutral(eltype(T)))
+  else
+    _b, state = first
+    b = continuation(_b)
+    # we need to abstract out details so that combine can actually work
+    # note that because of its definition, pure(ABC, x) == pure(A, x)
+    # start = feltype_unionall_implementationdetails(fmap(traitsof, a -> pure(traitsof, T, a), x)) # we can only combine on S
+    start = map(c -> pure(T, c), b)  # we can only combine on ABC
+    Base.foldl(Iterators.rest(iter, state); init = start) do acc, _b
+      b = continuation(_b)
+      mapn(acc, b) do acc′, c  # working in applicative context B
+        acc′ ⊕ pure(T, c)  # combining on T
+      end
+    end
+  end
+end
+
 # NoEffect
 # --------
 ExtensibleEffects.eff_applies(handler::Type{<:NoEffect}, effectful::NoEffect) = true
@@ -38,7 +62,7 @@ ExtensibleEffects.eff_flatmap(continuation, effectful::Identity) = continuation(
 # -----
 ExtensibleEffects.eff_applies(handler::Type{<:Const}, effectful::Const) = true
 # usually Const does not have a pure, however within Eff, it is totally fine,
-# as continuations on Const never get evaluated anyways, 
+# as continuations on Const never get evaluated anyways,
 # (and eff_pure is only called at the very end, when literal values are reached)
 ExtensibleEffects.eff_pure(handler::Type{<:Const}, value) = value
 ExtensibleEffects.eff_flatmap(continuation, effectful::Const) = effectful
@@ -305,7 +329,7 @@ ExtensibleEffects.eff_pure(handler::StateHandler, value) = (value, handler.state
 # We need to define our own runhandler instead. It is a bit more complex, but still straightforward and compact.
 function ExtensibleEffects.runhandler(handler::StateHandler, eff::Eff)
   eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
-  
+
   value, nextstate = eff.effectful(handler.state)
   nexthandler = StateHandler(nextstate)
   if isempty(eff.cont)

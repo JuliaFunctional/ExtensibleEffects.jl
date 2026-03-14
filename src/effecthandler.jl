@@ -1,3 +1,5 @@
+using SimpleMatch: @match
+
 """
     runhandlers(handlers, eff)
     runhandlers((Vector, Option), eff)::Vector{Option{...}}
@@ -32,13 +34,15 @@ end
 like `ExtensibleEffects.runlast`, however if the Eff is not yet completely handled, it just returns it.
 """
 function runlast_ifpossible(final::Eff)
-  if isempty(final.cont) && final.effectful isa NoEffect
-    final.effectful.value
-  else
-    final
+  @match(final.cont, final.effectful) do f
+    f(::Continuation{Tuple{}}, effectful::NoEffect) = effectful.value
+    f(_, _) = final
   end
 end
 
+# we reinterpret Types as TypeVal typevariables in order to automatically
+# specialize functions on these types
+runhandler(::Type{Handler}, eff::Eff) where Handler = runhandler(TypeVal{Handler}(), eff)
 
 """
     runhandler(handler, eff::Eff)
@@ -49,11 +53,11 @@ key method to run an effect on some effecthandler Eff
 note that we represent effectrunners as plain types in order to associate
 standard effect runners with types like Vector, Option, ...
 """
-function runhandler(handler, eff::Eff)
+function runhandler(handler, eff::Eff)  # this weird type parameter is needed because of https://discourse.julialang.org/t/need-help-on-understanding-type-inference-performance/80600
   eff_applies(handler, eff.effectful) || return runhandler_not_applies(handler, eff)
 
   interpreted_continuation = if isempty(eff.cont)
-    # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff` 
+    # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff`
     # because there is the handler which may have extra information
     Continuation(x -> _eff_pure(handler, x))
   else
@@ -62,10 +66,11 @@ function runhandler(handler, eff::Eff)
   _eff_flatmap(handler, interpreted_continuation, eff.effectful)
 end
 
+
 """
     runhandler_not_applies(handler, eff)
 
-if your handler does not apply, use this as the fallback to handle the unknown effect. 
+if your handler does not apply, use this as the fallback to handle the unknown effect.
 """
 function runhandler_not_applies(handler, eff::Eff)
   interpreted_continuation = if isempty(eff.cont)
@@ -77,6 +82,7 @@ function runhandler_not_applies(handler, eff::Eff)
   # this ensures the handler is applied recursively
   Eff(eff.effectful, interpreted_continuation)
 end
+
 
 """
     @runhandlers handlers eff
@@ -138,6 +144,9 @@ i.e. assuming the effect is handled afterwards.
 """
 eff_flatmap(handler, interpreted_continuation, value) = eff_flatmap(interpreted_continuation, value)
 
+# extra support for Type handlers
+eff_flatmap(::TypeVal{Handler}, interpreted_continuation, value) where Handler = eff_flatmap(Handler, interpreted_continuation, value)
+
 
 # eff_pure
 # --------
@@ -155,6 +164,9 @@ Plain values will be wrapped with `noeffect` automatically.
 """
 function eff_pure end
 
+# extra support for Type handlers
+eff_pure(::TypeVal{Handler}, value) where Handler = eff_pure(Handler, value)
+
 
 # eff_applies
 # -----------
@@ -171,3 +183,6 @@ which are captured in the handler type `CallableHandler(args, kwargs)`.
 Hence above you would choose YourHandlerType = `CallableHandler`, and ToBeHandledEffectType = `Callable`.
 """
 eff_applies(handler, value) = false
+
+# extra support for Type handlers
+eff_applies(::TypeVal{Handler}, value) where Handler = eff_applies(Handler, value)

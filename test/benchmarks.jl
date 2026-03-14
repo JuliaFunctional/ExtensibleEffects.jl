@@ -1,5 +1,5 @@
 using ExtensibleEffects
-using ExtensibleEffects: runhandler, Continuation, Eff, _eff_pure, @specializetype, myeff_flatmap, myeff_flatmap2
+using ExtensibleEffects: runhandler, Continuation, Eff, _eff_pure, @specializetype, myeff_flatmap #, myeff_flatmap2
 using TypeClasses
 using BenchmarkTools
 using JET
@@ -19,11 +19,11 @@ runhandlers(Vector, program1)
 
 function test(handler, eff)
     continuation = if isempty(eff.cont)
-        # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff` 
+        # you may think we could simplify this, however for eff `eff_flatmap(handler, x -> eff_pure(handler,  x), eff) != eff`
         # because there is the handler which may have extra information
-        @specializetype handler Continuation(x -> ExtensibleEffects._eff_pure(handler, x))
+        Continuation(x -> ExtensibleEffects._eff_pure(handler, x))
     else
-        @specializetype handler Continuation(x -> ExtensibleEffects.runhandler(handler, eff.cont(x)))
+        Continuation(x -> ExtensibleEffects.runhandler(handler, eff.cont(x)))
     end
 
     a = eff.effectful
@@ -58,7 +58,7 @@ eff_mark_eltype(eltype, eff) = EffWithEltype2{eltype, typeof(eff)}(eff)
 eff_mark_eltype(::Type{eltype}) where eltype = eff -> eff_mark_eltype(eltype, eff)
 
 Base.IteratorEltype(::EffWithEltype2) = Iterators.HasEltype()
-Base.eltype(::EffWithEltype2{ElType}) where ElType = ElType 
+Base.eltype(::EffWithEltype2{ElType}) where ElType = ElType
 
 @code_warntype eff_mark_eltype(Vector, eff)
 @code_warntype map(eff_mark_eltype(Vector), a_of_eff_of_a)
@@ -121,7 +121,7 @@ function _foldl_3(op::OP, init, itr) where {OP}
     y = iterate(itr)
     y === nothing && return init
     v = op(init, y[1])
-    
+
     y = iterate(itr, y[2])
     y === nothing && return v
     v = op(v, y[1])
@@ -194,7 +194,7 @@ function test3(::Type{T}, a1, a2) where T
         #= /home/ssahm/.julia/dev/TypeClasses/src/TypeClasses/FunctorApplicativeMonad.jl:167 =#
         a2 -> func(a1, a2)
     end
-    
+
     ap1 = map(curried_func, a1)
     ap2 = a2
 
@@ -217,15 +217,15 @@ function test3(::Type{T}, a1, a2) where T
     TypeClasses.flatmap(f_flatmap, ap1)
 
     myeff_flatmap(f_flatmap, ap1)
-    
+
     # myflatmap2(f_flatmap, ap1)
-    
+
 
     # myflatmap(f, eff::Eff) = Eff(eff.effectful, Continuation(eff.cont.functions..., f))
     # myflatmap(f_flatmap, ap1)
-    
-    
-    
+
+
+
     # eff = ap1
     # f = f_flatmap
     # Eff(eff.effectful, Continuation(eff.cont.functions..., f))
@@ -263,7 +263,7 @@ test2(ap1, ap2) = TypeClasses.flatmap(ap1) do f
         f(a)
     end
 end
-@code_warntype test2(ap1, ap2) 
+@code_warntype test2(ap1, ap2)
 
 create_fflatmap(ap2) = f -> TypeClasses.map(ap2) do a
     f(a)
@@ -363,7 +363,7 @@ mapn_code(2)
 
 
 
-singleton_array(T::Type{<:AbstractArray}, a) = convert(T, [a]) 
+singleton_array(T::Type{<:AbstractArray}, a) = convert(T, [a])
 
 struct ChainedFunctions{Fs}
     functions::Fs

@@ -12,25 +12,26 @@ only for internal purposes, captures the still unevaluated part of an Eff
 """
 struct Continuation{Fs}
   functions::Fs
-  Continuation(functions...) = new{typeof(functions)}(functions)
+  # specialization on vararg `...` is triggered by explicit ::Vararg type annotation
+  Continuation(functions::Vararg{Any,N}) where {N} = new{typeof(functions)}(functions)
 end
 
 """
 central data structure which can capture Effects in a way that they can interact, while each
 is handled independently on its own
 """
-struct Eff{Effectful, Fs}
+struct Eff{Effectful,Fs}
   effectful::Effectful
   cont::Continuation{Fs}
 end
 
-function Eff(effectful::E, cont::Continuation{Tuple{}}) where E<:NoEffect
+function Eff(effectful::E, cont::Continuation{Tuple{}}) where {E<:NoEffect}
   # also run this if isempty(cont) to stop infinite recursion
   # (which happens otherwise because empty cont results returns noeffect for convenience)
-  Eff{E, Tuple{}}(effectful, cont)
+  Eff{E,Tuple{}}(effectful, cont)
 end
 
-function Eff(effectful::NoEffect, cont::Continuation{Fs}) where Fs
+function Eff(effectful::NoEffect, cont::Continuation{Fs}) where {Fs}
   # Evaluate NoEffect directly to make sure, we don't have a chain of NoEffect function accumulating
   # e.g. with ContextManager this could lead to things not being evaluated, while the syntax suggest
   # everything is evaluated, and hence the ContextManager may finalize resource despite they are still used.
@@ -79,5 +80,13 @@ Base.map(f, c::Continuation) = Continuation(c.functions..., noeffect ∘ f)
 # -----------------------
 
 TypeClasses.pure(::Type{<:Eff}, a) = noeffect(a)
-TypeClasses.map(f, eff::Eff) = TypeClasses.flatmap(noeffect ∘ f, eff)
-TypeClasses.flatmap(f, eff::Eff) = Eff(eff.effectful, Continuation(eff.cont.functions..., f))
+
+# we use @generated functions to force inlining of the definition
+# which prevents bad type inference on recursive calls
+function TypeClasses.map(f::F, eff::Eff) where {F}
+  Eff(eff.effectful, Continuation(eff.cont.functions..., noeffect ∘ f))
+end
+
+function TypeClasses.flatmap(f::F, eff::Eff) where {F}
+  Eff(eff.effectful, Continuation(eff.cont.functions..., f))
+end
